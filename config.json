@@ -1,0 +1,33 @@
+{
+  "phase": 0,
+  "layers": {
+    "temperament": true,
+    "episodes": false,
+    "mood": false,
+    "personality": false,
+    "identity": false
+  },
+  "working_memory_capacity": 20,
+  "retrieval_weights": {
+    "semantic": 0.5,
+    "recency": 0.3,
+    "spreading_activation": 0.2
+  },
+  "spreading_activation": {
+    "hops": 2,
+    "decay_per_hop": 0.6
+  },
+  "consolidation": {
+    "significance_threshold": 0.3,
+    "cluster_min_size": 3,
+    "cluster_similarity_threshold": 0.75,
+    "auto_on_session_end": true
+  },
+  "decay": {
+    "episodic_rate": 0.0001,
+    "semantic_rate": 1e-05,
+    "procedural_rate": 1e-06,
+    "archive_threshold": 0.1
+  },
+  "embedding_model": "mixedbread-ai/mxbai-embed-large-v1"
+}

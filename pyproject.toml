@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "emotive-ai"
+version = "0.1.0"
+description = "Emergent AI personality through layered emotional architecture"
+requires-python = ">=3.12"
+dependencies = [
+    "sqlalchemy>=2.0,<3.0",
+    "alembic>=1.0,<2.0",
+    "psycopg[binary]>=3.1,<4.0",
+    "pgvector>=0.3,<1.0",
+    "fastmcp>=2.0",
+    "sentence-transformers>=3.0,<4.0",
+    "pydantic>=2.0,<3.0",
+    "pydantic-settings>=2.0,<3.0",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/emotive"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
