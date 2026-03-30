@@ -1,6 +1,5 @@
 """Tests for orphaned session cleanup."""
 
-import uuid
 from datetime import datetime, timezone
 
 from emotive.db.models.conversation import Conversation

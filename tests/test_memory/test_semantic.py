@@ -1,6 +1,6 @@
 """Tests for semantic memory."""
 
-from emotive.db.models.memory import Memory, MemoryLink
+from emotive.db.models.memory import MemoryLink
 from emotive.memory.episodic import store_episodic
 from emotive.memory.semantic import (
     SEMANTIC_DECAY_RATE,

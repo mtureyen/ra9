@@ -1,7 +1,6 @@
 """Tests for config audit trail."""
 
 from emotive.config.audit import _to_jsonb, audit_config_change
-from emotive.db.models.config_changes import ConfigChange
 
 
 def test_audit_config_change_creates_row(db_session):

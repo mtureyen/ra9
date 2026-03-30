@@ -2,7 +2,6 @@
 
 import uuid
 
-from emotive.db.models.memory import Memory
 from emotive.memory.base import recall_memories, store_memory
 from emotive.runtime.event_bus import MEMORY_RECALLED, MEMORY_STORED
 
@@ -123,3 +122,85 @@ def test_recall_memories_publishes_events(db_session, embedding_service, event_b
         query="event recall test unique qqq", limit=3, event_bus=event_bus,
     )
     assert len(received) >= 1
+
+
+# --- Phase 0.5: Brain-closer behavior tests ---
+
+
+def test_store_memory_creates_instant_links(db_session, embedding_service):
+    """Storing similar memories should auto-link them on creation."""
+    from emotive.db.models.memory import MemoryLink
+
+    m1 = store_memory(
+        db_session, embedding_service,
+        content="Dogs love playing fetch in the park", memory_type="episodic",
+    )
+    db_session.flush()
+    m2 = store_memory(
+        db_session, embedding_service,
+        content="Dogs enjoy playing fetch outdoors", memory_type="episodic",
+    )
+    db_session.flush()
+
+    links = db_session.query(MemoryLink).filter(
+        ((MemoryLink.source_memory_id == m2.id) & (MemoryLink.target_memory_id == m1.id))
+        | ((MemoryLink.source_memory_id == m1.id) & (MemoryLink.target_memory_id == m2.id))
+    ).all()
+    assert len(links) >= 1
+
+
+def test_store_memory_creates_temporal_links(db_session, embedding_service):
+    """Memories in the same conversation get temporal_proximity links."""
+
+    from emotive.db.models.memory import MemoryLink
+
+    conv_id = uuid.uuid4()
+    m1 = store_memory(
+        db_session, embedding_service,
+        content="First topic in conversation xyz", memory_type="episodic",
+        conversation_id=conv_id,
+    )
+    db_session.flush()
+    m2 = store_memory(
+        db_session, embedding_service,
+        content="Second totally different topic xyz", memory_type="episodic",
+        conversation_id=conv_id,
+    )
+    db_session.flush()
+
+    temporal = db_session.query(MemoryLink).filter(
+        MemoryLink.link_type == "temporal_proximity",
+    ).filter(
+        ((MemoryLink.source_memory_id == m1.id) & (MemoryLink.target_memory_id == m2.id))
+        | ((MemoryLink.source_memory_id == m2.id) & (MemoryLink.target_memory_id == m1.id))
+    ).all()
+    assert len(temporal) >= 1
+
+
+def test_recall_strengthens_co_recalled_links(db_session, embedding_service):
+    """Recalling multiple memories together should strengthen their links."""
+    from emotive.db.models.memory import MemoryLink
+
+    m1 = store_memory(
+        db_session, embedding_service,
+        content="Unique recall strengthen test alpha", memory_type="episodic",
+    )
+    m2 = store_memory(
+        db_session, embedding_service,
+        content="Unique recall strengthen test beta", memory_type="episodic",
+    )
+    db_session.flush()
+
+    # Recall both together
+    recall_memories(
+        db_session, embedding_service,
+        query="unique recall strengthen test", limit=5,
+    )
+    db_session.flush()
+
+    # Should have a link between them (created or strengthened)
+    links = db_session.query(MemoryLink).filter(
+        ((MemoryLink.source_memory_id == m1.id) & (MemoryLink.target_memory_id == m2.id))
+        | ((MemoryLink.source_memory_id == m2.id) & (MemoryLink.target_memory_id == m1.id))
+    ).all()
+    assert len(links) >= 1
