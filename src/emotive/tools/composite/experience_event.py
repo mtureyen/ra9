@@ -19,10 +19,11 @@ from emotive.memory.episodic import store_episodic_from_episode
 
 async def experience_event_tool(
     ctx: Context,
-    event: str,
-    source: str,
+    event: str | None = None,
+    source: str = "user_message",
+    description: str | None = None,
     conversation_id: str | None = None,
-    appraisal: dict | None = None,
+    appraisal: dict | str | None = None,
     context: str | None = None,
 ) -> dict:
     """Process an emotional event. Generates an episode and encodes to memory.
@@ -32,6 +33,7 @@ async def experience_event_tool(
 
     Args:
         event: Description of what happened.
+        description: Alias for event.
         source: "user_message", "internal_realization", or "memory_retrieval".
         conversation_id: Link to current session.
         appraisal: Optional self-assessed appraisal vector with keys:
@@ -40,6 +42,26 @@ async def experience_event_tool(
         context: Optional additional context about the event.
     """
     app: AppContext = ctx.lifespan_context
+
+    # Accept "description" as alias for "event"
+    if event is None and description is not None:
+        event = description
+    if event is None:
+        return {
+            "status": "error",
+            "error": "missing_event",
+            "message": "event (or description) is required",
+        }
+
+    # Coerce appraisal from JSON string if needed
+    if isinstance(appraisal, str):
+        import json
+
+        try:
+            appraisal = json.loads(appraisal)
+        except (json.JSONDecodeError, TypeError):
+            appraisal = None
+
     config = app.config_manager.get()
 
     if not config.layers.episodes:
