@@ -29,3 +29,11 @@ async def test_begin_session_returns_active_config(mcp_client):
         cfg = r["data"]["active_config"]
         assert cfg["phase"] == 0
         assert "temperament" in cfg["layers_enabled"]
+
+
+@pytest.mark.asyncio
+async def test_begin_session_reports_orphan_cleanup(mcp_client):
+    async with mcp_client as client:
+        r = (await client.call_tool("begin_session_tool", {})).data
+        assert "orphaned_sessions_cleaned" in r["data"]
+        assert isinstance(r["data"]["orphaned_sessions_cleaned"], int)

@@ -25,6 +25,7 @@ async def store_memory_tool(
     memory_type: str = "episodic",
     tags: list[str] | None = None,
     metadata: dict | None = None,
+    significance: float | None = None,
     conversation_id: str | None = None,
 ) -> dict:
     """Directly store a memory. Generates embedding automatically.
@@ -34,6 +35,7 @@ async def store_memory_tool(
         memory_type: "episodic", "semantic", or "procedural".
         tags: Optional semantic tags.
         metadata: Optional type-specific metadata (JSONB).
+        significance: Optional importance score (0.0 to 1.0). Stored in metadata.
         conversation_id: Link to a conversation session.
     """
     app: AppContext = ctx.lifespan_context
@@ -44,6 +46,18 @@ async def store_memory_tool(
             "error": "invalid_memory_type",
             "message": f"memory_type must be episodic/semantic/procedural, got {memory_type}",
         }
+
+    if significance is not None and not (0.0 <= significance <= 1.0):
+        return {
+            "status": "error",
+            "error": "invalid_significance",
+            "message": f"significance must be between 0.0 and 1.0, got {significance}",
+        }
+
+    # Merge significance into metadata
+    merged_metadata = dict(metadata or {})
+    if significance is not None:
+        merged_metadata["significance"] = significance
 
     conv_id = uuid.UUID(conversation_id) if conversation_id else None
     decay_rate = DECAY_RATES.get(memory_type, EPISODIC_DECAY_RATE)
@@ -57,7 +71,7 @@ async def store_memory_tool(
             memory_type=memory_type,
             conversation_id=conv_id,
             tags=tags,
-            metadata=metadata,
+            metadata=merged_metadata if merged_metadata else None,
             decay_rate=decay_rate,
             event_bus=app.event_bus,
         )
@@ -71,6 +85,7 @@ async def store_memory_tool(
                 "content": mem.content[:200],
                 "tags": mem.tags,
                 "decay_rate": mem.decay_rate,
+                "significance": significance,
             },
         }
 

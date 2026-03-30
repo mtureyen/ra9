@@ -7,6 +7,7 @@ from fastmcp import Context
 from emotive.app_context import AppContext
 from emotive.db.models.conversation import Conversation
 from emotive.db.models.temperament import Temperament
+from emotive.memory.session_cleanup import close_orphaned_sessions
 from emotive.runtime.event_bus import SESSION_STARTED
 
 
@@ -16,12 +17,24 @@ async def begin_session_tool(
 ) -> dict:
     """Start a new conversation. Returns conversation ID and current system state.
 
+    Automatically cleans up any orphaned sessions from previous crashes
+    or force-quits before starting the new session.
+
     Call this once at the start of every conversation.
     """
     app: AppContext = ctx.lifespan_context
+    config = app.config_manager.get()
 
     session = app.session_factory()
     try:
+        # Clean up orphaned sessions first
+        orphans_cleaned = close_orphaned_sessions(
+            session,
+            app.embedding_service,
+            config,
+            event_bus=app.event_bus,
+        )
+
         # Create conversation record
         conv = Conversation(metadata_=metadata or {})
         session.add(conv)
@@ -42,11 +55,9 @@ async def begin_session_tool(
                 "resilience": temp.resilience,
             }
 
-        config = app.config_manager.get()
-
         app.event_bus.publish(
             SESSION_STARTED,
-            {"metadata": metadata or {}},
+            {"metadata": metadata or {}, "orphans_cleaned": orphans_cleaned},
             conversation_id=conv.id,
         )
 
@@ -63,6 +74,7 @@ async def begin_session_tool(
                         k for k, v in config.layers.model_dump().items() if v
                     ],
                 },
+                "orphaned_sessions_cleaned": orphans_cleaned,
             },
         }
     except Exception as e:

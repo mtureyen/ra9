@@ -21,7 +21,9 @@ venv/
 .env
 
 # Claude Code
-.claude/
+.claude/*
+!.claude/settings.json
+.mcp.json
 
 # OS
 .DS_Store

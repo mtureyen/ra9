@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".venv/bin/python -m emotive.cli.close_sessions"
+          }
+        ]
+      }
+    ]
+  }
+}
