@@ -16,11 +16,9 @@ async def get_state_tool(
 ) -> dict:
     """Read the current state of the system.
 
-    In Phase 0, returns temperament and memory statistics.
-
     Args:
-        layers: Which layers to include. Options: "temperament", "memory_stats", "all".
-                 Defaults to ["all"].
+        layers: Which layers to include. Options: "temperament", "memory_stats",
+                 "episodes", "all". Defaults to ["all"].
     """
     app: AppContext = ctx.lifespan_context
     if layers is None:
@@ -75,6 +73,36 @@ async def get_state_tool(
                 "oldest_memory": str(stats_row[2]) if stats_row[2] else None,
                 "newest_memory": str(stats_row[3]) if stats_row[3] else None,
             }
+
+        if "all" in layers or "episodes" in layers:
+            config_check = app.config_manager.get()
+            if config_check.layers.episodes:
+                from emotive.layers.episodes import (
+                    get_active_episodes,
+                    get_current_intensity,
+                )
+
+                active = get_active_episodes(session)
+                episode_data = []
+                for ep in active[:5]:
+                    episode_data.append({
+                        "id": str(ep.id),
+                        "primary_emotion": ep.primary_emotion,
+                        "initial_intensity": ep.intensity,
+                        "current_intensity": round(
+                            get_current_intensity(ep), 4
+                        ),
+                        "is_formative": ep.is_formative,
+                        "trigger_event": ep.trigger_event[:100],
+                        "created_at": str(ep.created_at),
+                    })
+                data["episodes"] = {
+                    "active_count": len(active),
+                    "recent": episode_data,
+                    "formative_count": sum(
+                        1 for ep in active if ep.is_formative
+                    ),
+                }
 
         config = app.config_manager.get()
         data["active_config"] = {
