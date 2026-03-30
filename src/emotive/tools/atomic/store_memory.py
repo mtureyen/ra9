@@ -23,7 +23,7 @@ async def store_memory_tool(
     ctx: Context,
     content: str,
     memory_type: str = "episodic",
-    tags: list[str] | None = None,
+    tags: list[str] | str | None = None,
     metadata: dict | None = None,
     significance: float | None = None,
     conversation_id: str | None = None,
@@ -39,6 +39,15 @@ async def store_memory_tool(
         conversation_id: Link to a conversation session.
     """
     app: AppContext = ctx.lifespan_context
+
+    # Coerce tags from JSON string if LLM sends it that way
+    if isinstance(tags, str):
+        import json
+
+        try:
+            tags = json.loads(tags)
+        except (json.JSONDecodeError, TypeError):
+            tags = [tags]
 
     if memory_type not in ("episodic", "semantic", "procedural"):
         return {
