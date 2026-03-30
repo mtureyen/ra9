@@ -29,6 +29,7 @@ dev = [
 
 [project.scripts]
 emotive-close-sessions = "emotive.cli.close_sessions:close_open_sessions"
+emotive-export-obsidian = "emotive.cli.export_obsidian:export"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/emotive"]
