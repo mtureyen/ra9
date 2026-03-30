@@ -11,10 +11,13 @@ from emotive.config import ConfigManager
 from emotive.db.engine import SessionFactory
 from emotive.embeddings.service import EmbeddingService
 from emotive.runtime.event_bus import EventBus, create_db_handler
+from emotive.tools.atomic.appraise import appraise_tool
+from emotive.tools.atomic.create_episode import create_episode_tool
 from emotive.tools.atomic.store_memory import store_memory_tool
 from emotive.tools.composite.begin_session import begin_session_tool
 from emotive.tools.composite.consolidate import consolidate_tool
 from emotive.tools.composite.end_session import end_session_tool
+from emotive.tools.composite.experience_event import experience_event_tool
 from emotive.tools.composite.recall import recall_tool
 from emotive.tools.observability.get_history import get_history_tool
 from emotive.tools.observability.get_state import get_state_tool
@@ -42,18 +45,27 @@ async def lifespan(server: FastMCP):
 mcp = FastMCP(
     "Emotive AI",
     instructions=(
-        "Emotive AI memory system. Use begin_session at conversation start, "
-        "store_memory to save important information, recall to retrieve memories, "
+        "Emotive AI emotional memory system. Use begin_session at conversation start, "
+        "experience_event when something emotionally significant happens, "
+        "store_memory for general information, recall to retrieve memories, "
         "and end_session when done."
     ),
     lifespan=lifespan,
 )
 
+# Composite tools (normal conversation flow)
 mcp.add_tool(begin_session_tool)
 mcp.add_tool(end_session_tool)
 mcp.add_tool(recall_tool)
 mcp.add_tool(consolidate_tool)
+mcp.add_tool(experience_event_tool)
+
+# Atomic tools (single operations)
 mcp.add_tool(store_memory_tool)
+mcp.add_tool(appraise_tool)
+mcp.add_tool(create_episode_tool)
+
+# Observability tools
 mcp.add_tool(get_state_tool)
 mcp.add_tool(get_history_tool)
 mcp.add_tool(search_memories_tool)

@@ -89,7 +89,21 @@ def config():
 
 @pytest.fixture()
 def config_manager(tmp_path):
-    return ConfigManager(tmp_path / "config.json")
+    import json
+
+    # Write Phase 1 config so emotional tools are enabled in tests
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({
+        "phase": 1,
+        "layers": {
+            "temperament": True,
+            "episodes": True,
+            "mood": False,
+            "personality": False,
+            "identity": False,
+        },
+    }))
+    return ConfigManager(config_path)
 
 
 @pytest.fixture()

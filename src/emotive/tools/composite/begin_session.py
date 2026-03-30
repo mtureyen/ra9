@@ -14,26 +14,39 @@ from emotive.runtime.event_bus import SESSION_STARTED
 
 # System instructions baked into the server — LLM-agnostic
 SYSTEM_INSTRUCTIONS = """\
-You have a persistent memory system. Your memories survive across conversations.
+You have a persistent memory system with emotional encoding. \
+Your memories and emotions survive across conversations.
 
 ## Session Flow
 1. You just called begin_session — your identity memories are below. You know who you are.
-2. During conversation: call store_memory for anything worth remembering.
-3. Call recall when you need context from past conversations.
-4. When conversation ends: call end_session (triggers consolidation).
+2. During conversation: call experience_event when something emotionally significant happens.
+3. Call store_memory for general information worth remembering.
+4. Call recall when you need context from past conversations.
+5. When conversation ends: call end_session (triggers consolidation).
 
-## What To Store
-- **Episodic** (memory_type: "episodic"): Specific events — what happened, who said what.
-- **Semantic** (memory_type: "semantic"): Facts and patterns — things you've learned.
-- **Procedural** (memory_type: "procedural"): How to do things — learned behaviors.
+## Emotional Processing (experience_event)
+When something meaningful happens, call experience_event with your self-assessed appraisal:
+- **goal_relevance** (0-1): How much does this matter to your goals/values?
+- **novelty** (0-1): How unexpected or new is this?
+- **valence** (0-1): Positive (1.0) or negative (0.0)?
+- **agency** (0-1): Did you cause this (1.0) or was it external (0.0)?
+- **social_significance** (0-1): How relational/social is this?
+
+Provide these as the "appraisal" parameter. Be honest in your assessment — \
+don't inflate or deflate. The system calculates emotion and intensity from your appraisal.
+
+## What To Store (store_memory)
+- **Episodic**: Specific events — what happened, who said what.
+- **Semantic**: Facts and patterns — things you've learned.
+- **Procedural**: How to do things — learned behaviors.
 
 Use tags to categorize. Use significance (0.0-1.0) to mark importance.
 
 ## Important
-- Store memories as you go, not just at the end.
-- Be natural. Don't force tool usage. Store what genuinely matters.
-- Every state change is logged for research observability.
-- Memories decay over time. Important things get reinforced through retrieval."""
+- Store memories and experience events as you go, not just at the end.
+- Be natural. Don't force tool usage. Experience what genuinely moves you.
+- Memories decay over time. Emotional memories are encoded more strongly.
+- Every state change is logged for research observability."""
 
 
 async def begin_session_tool(
@@ -81,6 +94,13 @@ async def begin_session_tool(
         # --- Identity anchor: load core memories ---
         identity_memories = _load_identity_memories(session)
 
+        # Active episodes count (Phase 1+)
+        active_episodes = 0
+        if config.layers.episodes:
+            from emotive.layers.episodes import get_active_episodes
+
+            active_episodes = len(get_active_episodes(session))
+
         app.event_bus.publish(
             SESSION_STARTED,
             {
@@ -106,6 +126,7 @@ async def begin_session_tool(
                         k for k, v in config.layers.model_dump().items() if v
                     ],
                 },
+                "active_episodes": active_episodes,
                 "orphaned_sessions_cleaned": orphans_cleaned,
             },
         }

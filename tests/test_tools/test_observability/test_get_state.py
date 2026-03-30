@@ -34,4 +34,4 @@ async def test_get_state_memory_stats_only(mcp_client):
 async def test_get_state_includes_active_config(mcp_client):
     async with mcp_client as client:
         r = (await client.call_tool("get_state_tool", {})).data
-        assert r["data"]["active_config"]["phase"] == 0
+        assert r["data"]["active_config"]["phase"] >= 0

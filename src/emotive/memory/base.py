@@ -33,6 +33,11 @@ def store_memory(
     metadata: dict | None = None,
     decay_rate: float | None = None,
     confidence: float = 1.0,
+    emotional_intensity: float | None = None,
+    primary_emotion: str | None = None,
+    valence: float | None = None,
+    source_episode_id: uuid.UUID | None = None,
+    decay_protection: float | None = None,
     event_bus: EventBus | None = None,
 ) -> Memory:
     """Store a memory with auto-generated embedding.
@@ -56,6 +61,16 @@ def store_memory(
         mem.metadata_ = metadata
     if decay_rate is not None:
         mem.decay_rate = decay_rate
+    if emotional_intensity is not None:
+        mem.emotional_intensity = emotional_intensity
+    if primary_emotion is not None:
+        mem.primary_emotion = primary_emotion
+    if valence is not None:
+        mem.valence = valence
+    if source_episode_id is not None:
+        mem.source_episode_id = source_episode_id
+    if decay_protection is not None:
+        mem.decay_protection = decay_protection
 
     session.add(mem)
     session.flush()

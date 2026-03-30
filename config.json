@@ -1,8 +1,8 @@
 {
-  "phase": 0,
+  "phase": 1,
   "layers": {
     "temperament": true,
-    "episodes": false,
+    "episodes": true,
     "mood": false,
     "personality": false,
     "identity": false
@@ -29,6 +29,11 @@
     "semantic_rate": 1e-05,
     "procedural_rate": 1e-06,
     "archive_threshold": 0.1
+  },
+  "episodes": {
+    "base_half_life_minutes": 30.0,
+    "formative_intensity_threshold": 0.8,
+    "encoding_strength_weight": 0.8
   },
   "embedding_model": "mixedbread-ai/mxbai-embed-large-v1"
 }

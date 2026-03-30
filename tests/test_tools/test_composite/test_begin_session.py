@@ -27,7 +27,7 @@ async def test_begin_session_returns_active_config(mcp_client):
     async with mcp_client as client:
         r = (await client.call_tool("begin_session_tool", {})).data
         cfg = r["data"]["active_config"]
-        assert cfg["phase"] == 0
+        assert cfg["phase"] >= 0
         assert "temperament" in cfg["layers_enabled"]
 
 

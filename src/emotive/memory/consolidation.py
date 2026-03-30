@@ -71,6 +71,15 @@ def run_consolidation(
             conversation_id=conversation_id,
         )
 
+    # Step 0: Episode replay (Phase 1+)
+    episodes_replayed = 0
+    if config.layers.episodes:
+        episodes_replayed = _replay_episodes(
+            session, embedding_service, config,
+            conversation_id=conversation_id,
+            event_bus=event_bus,
+        )
+
     # Step 1: Promote
     promoted = _promote(
         session, embedding_service, config,
@@ -110,6 +119,7 @@ def run_consolidation(
     duration_ms = int((time.time() - start_time) * 1000)
     log_entry.completed_at = datetime.now(timezone.utc)
     log_entry.duration_ms = duration_ms
+    log_entry.episodes_replayed = episodes_replayed
     log_entry.memories_promoted = len(promoted)
     log_entry.patterns_extracted = len(extracted) + hubs_created
     log_entry.links_created = linked
@@ -128,6 +138,7 @@ def run_consolidation(
                 "concept_hubs_created": hubs_created,
                 "links_created": linked,
                 "memories_decayed": decay_result["memories_decayed"],
+                "episodes_replayed": episodes_replayed,
                 "memories_archived": decay_result["memories_archived"],
             },
             consolidation_id=log_entry.id,
@@ -137,6 +148,9 @@ def run_consolidation(
     return {
         "consolidation_id": log_entry.id,
         "duration_ms": duration_ms,
+        "replay": {
+            "episodes_replayed": episodes_replayed,
+        },
         "promotion": {
             "working_to_episodic": len(promoted),
         },
@@ -384,3 +398,42 @@ def _link_all(
                 links_created += 1
 
     return links_created
+
+
+def _replay_episodes(
+    session: Session,
+    embedding_service: EmbeddingService,
+    config: EmotiveConfig,
+    *,
+    conversation_id: uuid.UUID | None = None,
+    event_bus: EventBus | None = None,
+) -> int:
+    """Replay unencoded episodes into episodic memory.
+
+    Episodes that were created via experience_event but not yet encoded
+    into memory get encoded here. This handles edge cases where the
+    immediate encoding in experience_event failed.
+    """
+    from emotive.layers.episodes import get_unencoded_episodes
+
+    unencoded = get_unencoded_episodes(session)
+    if not unencoded:
+        return 0
+
+    from .episodic import store_episodic_from_episode
+
+    replayed = 0
+    for ep in unencoded:
+        store_episodic_from_episode(
+            session,
+            embedding_service,
+            episode=ep,
+            content=ep.trigger_event,
+            conversation_id=ep.conversation_id or conversation_id,
+            tags=[ep.primary_emotion],
+            encoding_strength_weight=config.episodes.encoding_strength_weight,
+            event_bus=event_bus,
+        )
+        replayed += 1
+
+    return replayed

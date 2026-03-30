@@ -9,6 +9,7 @@ from fastmcp import Context
 
 from emotive.app_context import AppContext
 from emotive.db.models.conversation import Conversation
+from emotive.db.models.temperament import Temperament
 from emotive.memory.consolidation import run_consolidation
 from emotive.runtime.event_bus import SESSION_ENDED
 
@@ -51,10 +52,21 @@ async def end_session_tool(
             delta = conv.ended_at - conv.started_at
             duration_minutes = round(delta.total_seconds() / 60, 1)
 
+        # Archive decayed episodes (Phase 1+)
+        episodes_archived = 0
+        config = app.config_manager.get()
+        if config.layers.episodes:
+            from emotive.layers.episodes import archive_decayed_episodes
+
+            temp = session.get(Temperament, 1)
+            sensitivity = temp.sensitivity if temp else 0.5
+            episodes_archived = archive_decayed_episodes(
+                session, sensitivity, event_bus=app.event_bus,
+            )
+
         # Consolidation
         consolidation_result = None
         if trigger_consolidation:
-            config = app.config_manager.get()
             if config.consolidation.auto_on_session_end:
                 consolidation_result = run_consolidation(
                     session,
@@ -81,6 +93,7 @@ async def end_session_tool(
             "conversation_id": conversation_id,
             "duration_minutes": duration_minutes,
             "message_count": conv.message_count,
+            "episodes_archived": episodes_archived,
         }
         if consolidation_result:
             result["consolidation"] = consolidation_result

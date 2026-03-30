@@ -70,6 +70,17 @@ class LayerConfig(BaseModel):
     identity: bool = False
 
 
+class EpisodeConfig(BaseModel):
+    """Settings for emotional episodes (Phase 1+)."""
+
+    base_half_life_minutes: float = Field(default=30.0, ge=1.0)
+    formative_intensity_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
+    encoding_strength_weight: float = Field(
+        default=0.8, ge=0.0, le=1.0,
+        description="Weight for intensity in encoding_strength formula",
+    )
+
+
 class EmotiveConfig(BaseModel):
     """Root configuration for the Emotive AI system."""
 
@@ -83,5 +94,6 @@ class EmotiveConfig(BaseModel):
     )
     consolidation: ConsolidationConfig = Field(default_factory=ConsolidationConfig)
     decay: DecayConfig = Field(default_factory=DecayConfig)
+    episodes: EpisodeConfig = Field(default_factory=EpisodeConfig)
 
     embedding_model: str = "mixedbread-ai/mxbai-embed-large-v1"
