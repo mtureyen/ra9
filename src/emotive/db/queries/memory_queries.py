@@ -94,7 +94,6 @@ def get_linked_memories(
             target = str(row["target_memory_id"])
             strength = row["strength"]
 
-            # Determine which end is the neighbor
             if source in current_frontier:
                 neighbor = target
                 parent_score = current_frontier[source]
@@ -106,7 +105,6 @@ def get_linked_memories(
                 continue
 
             score = parent_score * strength * decay_per_hop
-            # Keep the highest activation if reached from multiple paths
             if neighbor not in next_frontier or score > next_frontier[neighbor]:
                 next_frontier[neighbor] = score
 
@@ -142,7 +140,10 @@ def rank_memories(
     for mem in candidates:
         similarity = mem.get("similarity", 0.0)
         recency = compute_recency_weight(mem["created_at"])
-        mid = mem["id"] if isinstance(mem["id"], uuid.UUID) else uuid.UUID(str(mem["id"]))
+        mid = (
+            mem["id"] if isinstance(mem["id"], uuid.UUID)
+            else uuid.UUID(str(mem["id"]))
+        )
         spread = activation_scores.get(mid, 0.0)
 
         mem["recency_weight"] = recency
@@ -168,7 +169,6 @@ def apply_decay(
 
     Returns counts of decayed and archived memories.
     """
-    # Update detail_retention based on elapsed time
     sql_decay = text("""
         UPDATE memories
         SET detail_retention = 1.0 / (
@@ -181,17 +181,55 @@ def apply_decay(
     result = session.execute(sql_decay).mappings().all()
     decayed_count = len(result)
 
-    # Archive memories below threshold
     sql_archive = text("""
         UPDATE memories
         SET is_archived = true, archived_at = now()
         WHERE is_archived = false AND detail_retention < :threshold
         RETURNING id
     """)
-    archived = session.execute(sql_archive, {"threshold": archive_threshold}).mappings().all()
+    archived = session.execute(
+        sql_archive, {"threshold": archive_threshold}
+    ).mappings().all()
     archived_count = len(archived)
 
     return {"memories_decayed": decayed_count, "memories_archived": archived_count}
+
+
+def apply_interference(
+    session: Session,
+    new_memory_embedding: list[float],
+    new_memory_id: uuid.UUID,
+    *,
+    similarity_threshold: float = 0.85,
+    interference_strength: float = 0.02,
+    limit: int = 10,
+) -> int:
+    """Interference-based forgetting: new similar memories weaken old competing ones.
+
+    When a new memory is very similar to existing ones, slightly reduce
+    detail_retention on the older memories. Memories don't fade because
+    of a clock — they fade because newer memories crowd them out.
+
+    Returns count of interfered memories.
+    """
+    emb_str = _embedding_to_sql(new_memory_embedding)
+    sql = text("""
+        UPDATE memories
+        SET detail_retention = GREATEST(
+            detail_retention - :strength, 0.0
+        )
+        WHERE is_archived = false
+          AND id != :new_id
+          AND 1 - (embedding <=> CAST(:embedding AS vector)) >= :threshold
+        RETURNING id
+    """)
+    result = session.execute(sql, {
+        "embedding": emb_str,
+        "new_id": str(new_memory_id),
+        "threshold": similarity_threshold,
+        "strength": interference_strength,
+    }).mappings().all()
+    return len(result)
 
 
 def create_memory_link(
@@ -220,6 +258,34 @@ def create_memory_link(
     return result
 
 
+def strengthen_link(
+    session: Session,
+    source_id: uuid.UUID,
+    target_id: uuid.UUID,
+    link_type: str,
+    boost: float = 0.05,
+) -> None:
+    """Strengthen an existing link, or create it if it doesn't exist.
+
+    Used when memories are co-recalled — co-activation strengthens association.
+    """
+    sql = text("""
+        INSERT INTO memory_links
+            (source_memory_id, target_memory_id, link_type, strength)
+        VALUES (:source, :target, :link_type, :boost)
+        ON CONFLICT (source_memory_id, target_memory_id, link_type)
+        DO UPDATE SET strength = LEAST(
+            memory_links.strength + :boost, 1.0
+        )
+    """)
+    session.execute(sql, {
+        "source": str(source_id),
+        "target": str(target_id),
+        "link_type": link_type,
+        "boost": boost,
+    })
+
+
 def find_similar_memories(
     session: Session,
     embedding: list[float],
@@ -232,7 +298,9 @@ def find_similar_memories(
     """Find memories above a similarity threshold. Used for consolidation clustering."""
     filters = ["is_archived = false"]
     emb_str = _embedding_to_sql(embedding)
-    params: dict = {"embedding": emb_str, "threshold": threshold, "limit": limit}
+    params: dict = {
+        "embedding": emb_str, "threshold": threshold, "limit": limit,
+    }
 
     if exclude_ids:
         filters.append("id != ALL(:exclude_ids)")
@@ -256,3 +324,43 @@ def find_similar_memories(
 
     rows = session.execute(sql, params).mappings().all()
     return [dict(row) for row in rows]
+
+
+def link_by_conversation(
+    session: Session,
+    conversation_id: uuid.UUID,
+    *,
+    strength: float = 0.4,
+) -> int:
+    """Link all memories from the same conversation via temporal proximity.
+
+    Things that happen together get linked — even if content is unrelated.
+    Returns count of new links created.
+    """
+    sql = text("""
+        SELECT id FROM memories
+        WHERE conversation_id = :conv_id AND is_archived = false
+        ORDER BY created_at
+    """)
+    rows = session.execute(
+        sql, {"conv_id": str(conversation_id)}
+    ).mappings().all()
+    mem_ids = [row["id"] for row in rows]
+
+    if len(mem_ids) < 2:
+        return 0
+
+    links_created = 0
+    for i in range(len(mem_ids)):
+        for j in range(i + 1, min(i + 4, len(mem_ids))):
+            result = create_memory_link(
+                session,
+                mem_ids[i],
+                mem_ids[j],
+                "temporal_proximity",
+                strength=strength,
+            )
+            if result is not None:
+                links_created += 1
+
+    return links_created
