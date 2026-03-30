@@ -15,6 +15,7 @@ from emotive.db.models.event_log import EventLog
 async def get_history_tool(
     ctx: Context,
     history_type: str = "events",
+    type: str | None = None,
     event_type: str | None = None,
     start: str | None = None,
     end: str | None = None,
@@ -24,11 +25,15 @@ async def get_history_tool(
 
     Args:
         history_type: "events", "consolidations", or "episodes".
+        type: Alias for history_type.
         event_type: Filter events by type (e.g., "memory_stored").
         start: ISO 8601 start time (optional).
         end: ISO 8601 end time (optional).
         limit: Max entries to return (default 50).
     """
+    # Accept "type" as alias for "history_type"
+    if type is not None:
+        history_type = type
     app: AppContext = ctx.lifespan_context
 
     session = app.session_factory()
