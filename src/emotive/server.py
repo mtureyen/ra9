@@ -13,14 +13,18 @@ from emotive.embeddings.service import EmbeddingService
 from emotive.runtime.event_bus import EventBus, create_db_handler
 from emotive.tools.atomic.appraise import appraise_tool
 from emotive.tools.atomic.create_episode import create_episode_tool
+from emotive.tools.atomic.decay_memories import decay_memories_tool
+from emotive.tools.atomic.link_memories import link_memories_tool
 from emotive.tools.atomic.store_memory import store_memory_tool
 from emotive.tools.composite.begin_session import begin_session_tool
 from emotive.tools.composite.consolidate import consolidate_tool
 from emotive.tools.composite.end_session import end_session_tool
 from emotive.tools.composite.experience_event import experience_event_tool
 from emotive.tools.composite.recall import recall_tool
+from emotive.tools.observability.export_timeline import export_timeline_tool
 from emotive.tools.observability.get_history import get_history_tool
 from emotive.tools.observability.get_state import get_state_tool
+from emotive.tools.observability.reset_layer import reset_layer_tool
 from emotive.tools.observability.search_memories import search_memories_tool
 from emotive.tools.observability.set_config import set_config_tool
 
@@ -64,12 +68,16 @@ mcp.add_tool(experience_event_tool)
 mcp.add_tool(store_memory_tool)
 mcp.add_tool(appraise_tool)
 mcp.add_tool(create_episode_tool)
+mcp.add_tool(link_memories_tool)
+mcp.add_tool(decay_memories_tool)
 
 # Observability tools
 mcp.add_tool(get_state_tool)
 mcp.add_tool(get_history_tool)
 mcp.add_tool(search_memories_tool)
 mcp.add_tool(set_config_tool)
+mcp.add_tool(reset_layer_tool)
+mcp.add_tool(export_timeline_tool)
 
 
 if __name__ == "__main__":
