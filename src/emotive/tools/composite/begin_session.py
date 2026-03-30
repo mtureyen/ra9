@@ -3,22 +3,47 @@
 from __future__ import annotations
 
 from fastmcp import Context
+from sqlalchemy import select
 
 from emotive.app_context import AppContext
 from emotive.db.models.conversation import Conversation
+from emotive.db.models.memory import Memory
 from emotive.db.models.temperament import Temperament
 from emotive.memory.session_cleanup import close_orphaned_sessions
 from emotive.runtime.event_bus import SESSION_STARTED
+
+# System instructions baked into the server — LLM-agnostic
+SYSTEM_INSTRUCTIONS = """\
+You have a persistent memory system. Your memories survive across conversations.
+
+## Session Flow
+1. You just called begin_session — your identity memories are below. You know who you are.
+2. During conversation: call store_memory for anything worth remembering.
+3. Call recall when you need context from past conversations.
+4. When conversation ends: call end_session (triggers consolidation).
+
+## What To Store
+- **Episodic** (memory_type: "episodic"): Specific events — what happened, who said what.
+- **Semantic** (memory_type: "semantic"): Facts and patterns — things you've learned.
+- **Procedural** (memory_type: "procedural"): How to do things — learned behaviors.
+
+Use tags to categorize. Use significance (0.0-1.0) to mark importance.
+
+## Important
+- Store memories as you go, not just at the end.
+- Be natural. Don't force tool usage. Store what genuinely matters.
+- Every state change is logged for research observability.
+- Memories decay over time. Important things get reinforced through retrieval."""
 
 
 async def begin_session_tool(
     ctx: Context,
     metadata: dict | None = None,
 ) -> dict:
-    """Start a new conversation. Returns conversation ID and current system state.
+    """Start a new conversation. Returns identity memories and system state.
 
-    Automatically cleans up any orphaned sessions from previous crashes
-    or force-quits before starting the new session.
+    Automatically cleans up orphaned sessions and loads core identity
+    memories so you know who you are from the first message.
 
     Call this once at the start of every conversation.
     """
@@ -27,11 +52,9 @@ async def begin_session_tool(
 
     session = app.session_factory()
     try:
-        # Clean up orphaned sessions first
+        # Clean up orphaned sessions
         orphans_cleaned = close_orphaned_sessions(
-            session,
-            app.embedding_service,
-            config,
+            session, app.embedding_service, config,
             event_bus=app.event_bus,
         )
 
@@ -55,9 +78,16 @@ async def begin_session_tool(
                 "resilience": temp.resilience,
             }
 
+        # --- Identity anchor: load core memories ---
+        identity_memories = _load_identity_memories(session)
+
         app.event_bus.publish(
             SESSION_STARTED,
-            {"metadata": metadata or {}, "orphans_cleaned": orphans_cleaned},
+            {
+                "metadata": metadata or {},
+                "orphans_cleaned": orphans_cleaned,
+                "identity_memories_loaded": len(identity_memories),
+            },
             conversation_id=conv.id,
         )
 
@@ -67,6 +97,8 @@ async def begin_session_tool(
             "status": "ok",
             "data": {
                 "conversation_id": str(conv.id),
+                "instructions": SYSTEM_INSTRUCTIONS,
+                "identity_memories": identity_memories,
                 "temperament": temperament_data,
                 "active_config": {
                     "phase": config.phase,
@@ -82,3 +114,60 @@ async def begin_session_tool(
         return {"status": "error", "error": "session_start_failed", "message": str(e)}
     finally:
         session.close()
+
+
+def _load_identity_memories(session, limit: int = 10) -> list[dict]:
+    """Load the most important memories for identity continuity.
+
+    Pulls memories by: highest retrieval count, highest significance,
+    and formative status. These are the memories that define who you are.
+    """
+    # Most retrieved (identity anchors — what gets recalled every session)
+    most_retrieved = (
+        select(Memory)
+        .where(Memory.is_archived.is_(False))
+        .where(Memory.retrieval_count > 0)
+        .order_by(Memory.retrieval_count.desc())
+        .limit(5)
+    )
+
+    # Highest significance
+    high_sig = (
+        select(Memory)
+        .where(Memory.is_archived.is_(False))
+        .where(Memory.metadata_["significance"].as_float() >= 0.8)
+        .order_by(Memory.metadata_["significance"].as_float().desc())
+        .limit(5)
+    )
+
+    # Formative memories
+    formative = (
+        select(Memory)
+        .where(Memory.is_archived.is_(False))
+        .where(Memory.is_formative.is_(True))
+        .limit(5)
+    )
+
+    # Combine and deduplicate
+    seen_ids = set()
+    results = []
+
+    for stmt in [most_retrieved, high_sig, formative]:
+        rows = session.execute(stmt).scalars().all()
+        for m in rows:
+            if m.id not in seen_ids and len(results) < limit:
+                seen_ids.add(m.id)
+                sig = None
+                if m.metadata_ and "significance" in m.metadata_:
+                    sig = m.metadata_["significance"]
+                results.append({
+                    "id": str(m.id),
+                    "memory_type": m.memory_type,
+                    "content": m.content,
+                    "significance": sig,
+                    "retrieval_count": m.retrieval_count,
+                    "is_formative": m.is_formative,
+                    "tags": m.tags or [],
+                })
+
+    return results

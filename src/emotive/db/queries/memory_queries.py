@@ -132,11 +132,12 @@ def rank_memories(
     candidates: list[dict],
     activation_scores: dict[uuid.UUID, float],
     *,
-    w_semantic: float = 0.5,
-    w_recency: float = 0.3,
+    w_semantic: float = 0.4,
+    w_recency: float = 0.25,
     w_activation: float = 0.2,
+    w_significance: float = 0.15,
 ) -> list[dict]:
-    """Combine similarity, recency, and spreading activation into final ranking."""
+    """Combine similarity, recency, spreading activation, and significance."""
     for mem in candidates:
         similarity = mem.get("similarity", 0.0)
         recency = compute_recency_weight(mem["created_at"])
@@ -146,12 +147,20 @@ def rank_memories(
         )
         spread = activation_scores.get(mid, 0.0)
 
+        # Significance from metadata, default 0.5 if not set
+        sig = 0.5
+        metadata = mem.get("metadata")
+        if isinstance(metadata, dict) and "significance" in metadata:
+            sig = float(metadata["significance"])
+
         mem["recency_weight"] = recency
         mem["spreading_activation"] = spread
+        mem["significance"] = sig
         mem["final_rank"] = (
             similarity * w_semantic
             + recency * w_recency
             + spread * w_activation
+            + sig * w_significance
         )
 
     candidates.sort(key=lambda m: m["final_rank"], reverse=True)

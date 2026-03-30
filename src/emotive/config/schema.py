@@ -6,13 +6,14 @@ from pydantic import BaseModel, Field, model_validator
 class RetrievalWeights(BaseModel):
     """Weights for memory retrieval ranking. Must sum to 1.0."""
 
-    semantic: float = Field(default=0.5, ge=0.0, le=1.0)
-    recency: float = Field(default=0.3, ge=0.0, le=1.0)
+    semantic: float = Field(default=0.4, ge=0.0, le=1.0)
+    recency: float = Field(default=0.25, ge=0.0, le=1.0)
     spreading_activation: float = Field(default=0.2, ge=0.0, le=1.0)
+    significance: float = Field(default=0.15, ge=0.0, le=1.0)
 
     @model_validator(mode="after")
     def weights_sum_to_one(self) -> "RetrievalWeights":
-        total = self.semantic + self.recency + self.spreading_activation
+        total = self.semantic + self.recency + self.spreading_activation + self.significance
         if abs(total - 1.0) > 0.001:
             msg = f"Retrieval weights must sum to 1.0, got {total}"
             raise ValueError(msg)

@@ -9,9 +9,10 @@
   },
   "working_memory_capacity": 20,
   "retrieval_weights": {
-    "semantic": 0.5,
-    "recency": 0.3,
-    "spreading_activation": 0.2
+    "semantic": 0.4,
+    "recency": 0.25,
+    "spreading_activation": 0.2,
+    "significance": 0.15
   },
   "spreading_activation": {
     "hops": 2,

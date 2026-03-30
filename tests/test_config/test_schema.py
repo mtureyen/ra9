@@ -21,7 +21,8 @@ def test_default_config_creates_valid_instance():
 
 def test_retrieval_weights_sum_to_one():
     w = RetrievalWeights()
-    assert abs(w.semantic + w.recency + w.spreading_activation - 1.0) < 0.001
+    total = w.semantic + w.recency + w.spreading_activation + w.significance
+    assert abs(total - 1.0) < 0.001
 
 
 def test_retrieval_weights_reject_bad_sum():

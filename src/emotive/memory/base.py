@@ -116,9 +116,10 @@ def recall_memories(
     memory_type: str | None = None,
     limit: int = 5,
     include_spreading: bool = True,
-    w_semantic: float = 0.5,
-    w_recency: float = 0.3,
+    w_semantic: float = 0.4,
+    w_recency: float = 0.25,
     w_activation: float = 0.2,
+    w_significance: float = 0.15,
     spreading_hops: int = 2,
     spreading_decay: float = 0.6,
     event_bus: EventBus | None = None,
@@ -160,6 +161,7 @@ def recall_memories(
         w_semantic=w_semantic,
         w_recency=w_recency,
         w_activation=w_activation,
+        w_significance=w_significance,
     )
 
     # Step 4: Take top results, mark as labile, update retrieval stats
