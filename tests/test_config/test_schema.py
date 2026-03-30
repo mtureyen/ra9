@@ -81,3 +81,17 @@ def test_emotive_config_phase_bounds():
 def test_emotive_config_embedding_model_default():
     cfg = EmotiveConfig()
     assert cfg.embedding_model == "mixedbread-ai/mxbai-embed-large-v1"
+
+
+def test_episode_config_defaults():
+    from emotive.config.schema import EpisodeConfig
+
+    ec = EpisodeConfig()
+    assert ec.base_half_life_minutes == 30.0
+    assert ec.formative_intensity_threshold == 0.8
+    assert ec.encoding_strength_weight == 0.8
+
+
+def test_emotive_config_has_episode_config():
+    cfg = EmotiveConfig()
+    assert cfg.episodes.base_half_life_minutes == 30.0

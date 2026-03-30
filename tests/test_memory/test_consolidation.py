@@ -81,6 +81,45 @@ def test_run_consolidation_report_structure(db_session, embedding_service, confi
     assert "decay" in result
 
 
+def test_run_consolidation_replays_unencoded_episodes(
+    db_session, embedding_service, config, event_bus,
+):
+    """Episodes not yet encoded into memory get replayed during consolidation."""
+    from emotive.config.schema import EmotiveConfig, LayerConfig
+    from emotive.db.models.episode import EmotionalEpisode
+
+    # Use Phase 1 config
+    phase1_config = EmotiveConfig(
+        phase=1, layers=LayerConfig(temperament=True, episodes=True),
+    )
+
+    # Create an unencoded episode
+    ep = EmotionalEpisode(
+        trigger_event="replay test event",
+        trigger_source="test",
+        appraisal_goal_relevance=0.7,
+        appraisal_novelty=0.5,
+        appraisal_valence=0.8,
+        appraisal_agency=0.3,
+        appraisal_social_significance=0.6,
+        primary_emotion="trust",
+        intensity=0.6,
+        decay_rate=0.02,
+        half_life_minutes=30.0,
+        memory_encoded=False,
+    )
+    db_session.add(ep)
+    db_session.flush()
+
+    result = run_consolidation(
+        db_session, embedding_service, phase1_config, event_bus=event_bus,
+    )
+    assert result["replay"]["episodes_replayed"] >= 1
+
+    db_session.refresh(ep)
+    assert ep.memory_encoded is True
+
+
 def test_run_consolidation_report_includes_concept_hubs(
     db_session, embedding_service, config, event_bus,
 ):

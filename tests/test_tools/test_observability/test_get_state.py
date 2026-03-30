@@ -35,3 +35,22 @@ async def test_get_state_includes_active_config(mcp_client):
     async with mcp_client as client:
         r = (await client.call_tool("get_state_tool", {})).data
         assert r["data"]["active_config"]["phase"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_get_state_episodes(mcp_client):
+    async with mcp_client as client:
+        # Create an episode first
+        await client.call_tool("experience_event_tool", {
+            "event": "State test event",
+            "source": "user_message",
+            "appraisal": {
+                "goal_relevance": 0.7, "novelty": 0.5,
+                "valence": 0.8, "agency": 0.3, "social_significance": 0.6,
+            },
+        })
+        r = (await client.call_tool("get_state_tool", {"layers": ["episodes"]})).data
+        assert "episodes" in r["data"]
+        assert "active_count" in r["data"]["episodes"]
+        assert "recent" in r["data"]["episodes"]
+        assert r["data"]["episodes"]["active_count"] >= 1
