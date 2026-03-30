@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastmcp import Context
+from sqlalchemy import select
 
 from emotive.app_context import AppContext
 from emotive.db.models.conversation import Conversation
@@ -16,7 +17,7 @@ from emotive.runtime.event_bus import SESSION_ENDED
 
 async def end_session_tool(
     ctx: Context,
-    conversation_id: str,
+    conversation_id: str | None = None,
     summary: str | None = None,
     topics: list[str] | None = None,
     trigger_consolidation: bool = True,
@@ -24,18 +25,37 @@ async def end_session_tool(
     """End a conversation session. Optionally triggers memory consolidation.
 
     Call this once at the end of every conversation.
+    If conversation_id is not provided, closes the most recent open session.
     """
     app: AppContext = ctx.lifespan_context
-    conv_id = uuid.UUID(conversation_id)
 
     session = app.session_factory()
     try:
+        # Resolve conversation ID
+        if conversation_id:
+            conv_id = uuid.UUID(conversation_id)
+        else:
+            stmt = (
+                select(Conversation)
+                .where(Conversation.ended_at.is_(None))
+                .order_by(Conversation.started_at.desc())
+                .limit(1)
+            )
+            latest = session.execute(stmt).scalar_one_or_none()
+            if latest is None:
+                return {
+                    "status": "error",
+                    "error": "no_open_session",
+                    "message": "No open conversation to end",
+                }
+            conv_id = latest.id
+
         conv = session.get(Conversation, conv_id)
         if conv is None:
             return {
                 "status": "error",
                 "error": "conversation_not_found",
-                "message": f"No conversation with id {conversation_id}",
+                "message": f"No conversation with id {conv_id}",
             }
 
         # Close conversation
@@ -90,7 +110,7 @@ async def end_session_tool(
         session.commit()
 
         result = {
-            "conversation_id": conversation_id,
+            "conversation_id": str(conv_id),
             "duration_minutes": duration_minutes,
             "message_count": conv.message_count,
             "episodes_archived": episodes_archived,

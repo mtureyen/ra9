@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid as _uuid
+
 from fastmcp import Context
 
 from emotive.app_context import AppContext
@@ -14,6 +16,7 @@ async def recall_tool(
     memory_types: list[str] | None = None,
     limit: int = 5,
     include_spreading: bool = True,
+    conversation_id: str | None = None,
 ) -> dict:
     """Retrieve memories relevant to a query.
 
@@ -51,6 +54,7 @@ async def recall_tool(
             spreading_hops=spread.hops,
             spreading_decay=spread.decay_per_hop,
             event_bus=app.event_bus,
+            conversation_id=_uuid.UUID(conversation_id) if conversation_id else None,
         )
 
         session.commit()
