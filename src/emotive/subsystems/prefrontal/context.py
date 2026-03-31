@@ -26,6 +26,7 @@ def build_system_prompt(
     recalled_memories: list[dict] | None = None,
     active_episodes: list[dict] | None = None,
     temperament: dict | None = None,
+    procedural_memories: list[dict] | None = None,
 ) -> str:
     """Assemble the enriched system prompt from all context sources."""
     sections = [
@@ -48,6 +49,9 @@ def build_system_prompt(
 
     if active_episodes:
         sections.append(_format_episodes(active_episodes))
+
+    if procedural_memories:
+        sections.append(_format_procedural(procedural_memories))
 
     sections.append(
         "## How to Respond\n"
@@ -134,6 +138,15 @@ def _format_memories(memories: list[dict]) -> str:
             lines.append(f"- [nudge] Something you haven't thought about recently: {content}")
         else:
             lines.append(f"- [{mem_type}] {content}")
+    return "\n".join(lines)
+
+
+def _format_procedural(memories: list[dict]) -> str:
+    """Format procedural memories as learned behaviors for the system prompt."""
+    lines = ["## Learned Behaviors"]
+    for mem in memories[:10]:
+        content = mem.get("content", "")[:200]
+        lines.append(f"- [behavior] {content}")
     return "\n".join(lines)
 
 

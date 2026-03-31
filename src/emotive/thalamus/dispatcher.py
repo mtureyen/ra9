@@ -13,6 +13,8 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
+from sqlalchemy.orm import Session
+
 from emotive.db.models.temperament import Temperament
 from emotive.layers.episodes import get_active_episodes, get_current_intensity
 from emotive.llm.adapter import create_adapter
@@ -114,6 +116,13 @@ class Thalamus:
         finally:
             session.close()
 
+        # 2b. Load procedural memories (auto-activated every exchange, like self-schema)
+        procedural_memories: list[dict] = []
+        try:
+            procedural_memories = _load_procedural_memories(session)
+        except Exception:
+            logger.exception("Failed to load procedural memories")
+
         # 3. Fast appraisal + auto-recall (both use shared embedding)
         fast_appraisal = self.amygdala.fast_pass(
             input_embedding,
@@ -152,6 +161,7 @@ class Thalamus:
             recalled_memories=recalled,
             active_episodes=active_episodes,
             temperament=temperament_dict,
+            procedural_memories=procedural_memories if procedural_memories else None,
         )
 
         # 6. Stream LLM response
@@ -314,6 +324,35 @@ class Thalamus:
         finally:
             session.close()
         return None
+
+
+def _load_procedural_memories(session: Session) -> list[dict]:
+    """Load all active procedural memories — auto-activated every exchange.
+
+    Like the self-schema, procedural memories are always present in context.
+    They represent learned behaviors that should always be active.
+    """
+    from sqlalchemy import select
+
+    from emotive.db.models.memory import Memory
+
+    stmt = (
+        select(Memory)
+        .where(Memory.memory_type == "procedural")
+        .where(Memory.is_archived.is_(False))
+        .order_by(Memory.created_at.desc())
+        .limit(20)
+    )
+    rows = session.execute(stmt).scalars().all()
+    return [
+        {
+            "id": str(m.id),
+            "content": m.content,
+            "memory_type": m.memory_type,
+            "tags": m.tags or [],
+        }
+        for m in rows
+    ]
 
 
 def _temperament_to_dict(temp: Temperament) -> dict:

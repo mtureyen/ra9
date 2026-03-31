@@ -9,6 +9,7 @@ Brain analog: hippocampal encoding, arousal-gated by amygdala output.
 
 from __future__ import annotations
 
+import re
 import time
 import uuid
 
@@ -20,10 +21,38 @@ from emotive.embeddings.service import EmbeddingService
 from emotive.layers.appraisal import AppraisalResult, run_appraisal
 from emotive.layers.episodes import create_episode
 from emotive.logging import get_logger
+from emotive.memory.base import store_memory
 from emotive.memory.episodic import store_episodic_from_episode
 from emotive.runtime.event_bus import EventBus
 
 logger = get_logger("hippocampus.encoding")
+
+
+# Patterns that indicate behavioral coaching / instructions
+_COACHING_PATTERNS = [
+    re.compile(r"\bbe more\b", re.IGNORECASE),
+    re.compile(r"\btry to be\b", re.IGNORECASE),
+    re.compile(r"\bdon'?t be\b", re.IGNORECASE),
+    re.compile(r"\bfrom now on\b", re.IGNORECASE),
+    re.compile(r"\balways\b", re.IGNORECASE),
+    re.compile(r"\bnever\b", re.IGNORECASE),
+    re.compile(r"\bremember to\b", re.IGNORECASE),
+    re.compile(r"\bstart doing\b", re.IGNORECASE),
+    re.compile(r"\bstop doing\b", re.IGNORECASE),
+    re.compile(r"\buse lowercase\b", re.IGNORECASE),
+    re.compile(r"\bwrite in\b", re.IGNORECASE),
+    re.compile(r"\btalk like\b", re.IGNORECASE),
+    re.compile(r"\bspeak like\b", re.IGNORECASE),
+]
+
+
+def detect_behavioral_coaching(content: str) -> bool:
+    """Detect if content is a behavioral instruction (coaching).
+
+    Matches patterns like "be more casual", "from now on use lowercase",
+    "never apologize", etc. These should be stored as procedural memory.
+    """
+    return any(p.search(content) for p in _COACHING_PATTERNS)
 
 
 class UnconsciousEncoder:
@@ -148,7 +177,7 @@ class UnconsciousEncoder:
                 content[:80],
             )
 
-        # Create episode
+        # Create episode (always — for emotional tracking)
         episode = create_episode(
             session,
             appraisal,
@@ -157,6 +186,29 @@ class UnconsciousEncoder:
             conversation_id=conversation_id,
             event_bus=event_bus,
         )
+
+        # Behavioral coaching detection: store as procedural instead of episodic
+        if detect_behavioral_coaching(content):
+            logger.info(
+                "Behavioral coaching detected → procedural encoding: %s",
+                content[:80],
+            )
+            memory = store_memory(
+                session,
+                embedding_service,
+                content=content[:500],
+                memory_type="procedural",
+                conversation_id=conversation_id,
+                tags=tags + ["behavioral_coaching"],
+                decay_rate=0.000001,
+                emotional_intensity=appraisal.intensity,
+                primary_emotion=appraisal.primary_emotion,
+                valence=appraisal.vector.valence,
+                source_episode_id=episode.id,
+                event_bus=event_bus,
+            )
+            self.record_encoding(appraisal.intensity)
+            return memory, episode.id
 
         # Encode as episodic memory
         memory = store_episodic_from_episode(

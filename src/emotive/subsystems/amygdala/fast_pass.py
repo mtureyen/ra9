@@ -64,6 +64,26 @@ def run_fast_pass(
     primary_emotion = ranked[0][0]
     primary_score = ranked[0][1]
 
+    # Significance gate: if best match is below 0.55, content is not
+    # emotionally significant — return minimal "neutral" result.
+    if primary_score < 0.55:
+        neutral_vector = AppraisalVector(
+            goal_relevance=0.1,
+            novelty=0.1,
+            valence=0.5,
+            agency=0.5,
+            social_significance=0.1,
+        )
+        return AppraisalResult(
+            vector=neutral_vector,
+            primary_emotion="neutral",
+            secondary_emotions=[],
+            intensity=0.05,
+            half_life_minutes=1.0,
+            is_formative=False,
+            decay_rate=math.log(2) / 1.0,
+        )
+
     # Secondary emotions (next 1-2 if score > 0.55)
     secondary = [e for e, s in ranked[1:3] if s > 0.55]
 

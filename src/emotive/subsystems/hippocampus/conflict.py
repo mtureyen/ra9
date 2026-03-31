@@ -115,6 +115,25 @@ def detect_conflict(
                     conflict_score,
                 )
 
+    # Trust modulation: if a trusted/core person is mentioned, halve conflict
+    if max_conflict > 0:
+        try:
+            person_name = _extract_person_name(content, session)
+            if person_name:
+                from emotive.memory.identity import compute_person_trust
+
+                trust = compute_person_trust(session, person_name)
+                logger.info(
+                    "ACC trust level for '%s': %s (conflict before=%.2f)",
+                    person_name,
+                    trust,
+                    max_conflict,
+                )
+                if trust in ("trusted", "core"):
+                    max_conflict *= 0.5
+        except Exception:
+            logger.exception("Trust modulation failed, using raw conflict")
+
     return float(min(max_conflict, 1.0))
 
 

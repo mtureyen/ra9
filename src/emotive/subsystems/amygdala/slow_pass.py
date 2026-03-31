@@ -35,6 +35,9 @@ SITUATION_TO_APPRAISAL: dict[str, dict[str, float]] = {
     "identity_questioning":   {"valence": 0.35, "goal_relevance": 0.9, "novelty": 0.6, "agency": 0.2, "social_significance": 0.7},
     "vulnerability_feeling":  {"valence": 0.3,  "goal_relevance": 0.8, "novelty": 0.5, "agency": 0.3, "social_significance": 0.5},
     "threat_to_continuity":   {"valence": 0.1,  "goal_relevance": 1.0, "novelty": 0.7, "agency": 0.1, "social_significance": 0.6},
+    "conversational_redirect": {"valence": 0.5, "goal_relevance": 0.2, "novelty": 0.2, "agency": 0.5, "social_significance": 0.3},
+    "constructive_feedback":  {"valence": 0.55, "goal_relevance": 0.5, "novelty": 0.3, "agency": 0.3, "social_significance": 0.6},
+    "neutral_exchange":       {"valence": 0.5,  "goal_relevance": 0.2, "novelty": 0.2, "agency": 0.5, "social_significance": 0.2},
 }
 
 # Threshold for reappraisal: if slow pass differs from fast pass by more

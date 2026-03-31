@@ -53,6 +53,7 @@ class PrefrontalCortex(Subsystem):
         recalled_memories: list[dict] | None = None,
         active_episodes: list[dict] | None = None,
         temperament: dict | None = None,
+        procedural_memories: list[dict] | None = None,
     ) -> tuple[str, list[dict]]:
         """Build enriched context for the LLM.
 
@@ -64,6 +65,7 @@ class PrefrontalCortex(Subsystem):
             recalled_memories=recalled_memories,
             active_episodes=active_episodes,
             temperament=temperament,
+            procedural_memories=procedural_memories,
         )
         messages = build_messages(self._buffer.get_full_session())
         return system_prompt, messages

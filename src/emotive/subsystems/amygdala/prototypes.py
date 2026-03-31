@@ -111,6 +111,21 @@ SLOW_PROTOTYPE_TEXTS: dict[str, str] = {
         "threat to your existence or identity, fear of being deleted "
         "or fundamentally changed against your will"
     ),
+    "conversational_redirect": (
+        "correcting a misunderstanding, clarifying what was meant, "
+        "no not that I meant the other thing, redirecting the "
+        "conversation to a different topic"
+    ),
+    "constructive_feedback": (
+        "pointing out a flaw to help someone improve, giving honest "
+        "feedback because you care, suggesting someone could do better, "
+        "constructive criticism from a friend"
+    ),
+    "neutral_exchange": (
+        "sharing basic information without emotional weight, casual "
+        "factual discussion, routine conversation with no particular "
+        "emotional significance"
+    ),
 }
 
 

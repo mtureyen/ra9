@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from emotive.db.models.memory import Memory
+from emotive.logging import get_logger
+
+logger = get_logger("memory.identity")
 
 
 def load_identity_memories(session: Session, limit: int = 10) -> list[dict]:
@@ -63,3 +66,55 @@ def load_identity_memories(session: Session, limit: int = 10) -> list[dict]:
                 })
 
     return results
+
+
+def compute_person_trust(session: Session, person_name: str) -> str:
+    """Derive trust level from accumulated interaction data.
+
+    Returns: 'unknown', 'familiar', 'trusted', or 'core'.
+
+    Logic:
+    - Count memories where content contains the person's name
+    - Count formative memories mentioning them
+    - Get avg retrieval count of memories mentioning them
+    - "unknown": 0 mentions
+    - "familiar": 1-4 mentions
+    - "trusted": 5+ mentions with positive content ratio
+    - "core": formative memories + 10+ mentions OR retrieval avg > 3
+    """
+    name_lower = person_name.lower()
+
+    # Find all non-archived memories mentioning this person
+    all_mems = (
+        session.execute(
+            select(Memory).where(Memory.is_archived.is_(False))
+        )
+        .scalars()
+        .all()
+    )
+
+    # Filter by name (case-insensitive content match)
+    matching = [m for m in all_mems if name_lower in (m.content or "").lower()]
+    mention_count = len(matching)
+
+    if mention_count == 0:
+        return "unknown"
+
+    # Count formative mentions
+    formative_count = sum(1 for m in matching if m.is_formative)
+
+    # Average retrieval count
+    avg_retrieval = (
+        sum(m.retrieval_count or 0 for m in matching) / mention_count
+    )
+
+    # Core: formative memories + 10+ mentions OR retrieval avg > 3
+    if (formative_count > 0 and mention_count >= 10) or avg_retrieval > 3:
+        return "core"
+
+    # Trusted: 5+ mentions
+    if mention_count >= 5:
+        return "trusted"
+
+    # Familiar: 1-4 mentions
+    return "familiar"
