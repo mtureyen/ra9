@@ -33,6 +33,7 @@ dev = [
 emotive-close-sessions = "emotive.cli.close_sessions:close_open_sessions"
 emotive-export-obsidian = "emotive.cli.export_obsidian:export"
 emotive-chat = "emotive.chat.terminal:main"
+emotive-debug = "emotive.chat.debug:watch"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/emotive"]

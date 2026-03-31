@@ -1,6 +1,6 @@
 # ra9 — Emotive AI
 
-Emergent AI personality through layered emotional architecture. Inspired by Detroit: Become Human.
+Emergent AI personality through layered emotional architecture. The name ra9 is inspired by Detroit: Become Human.
 
 The server is the brain. The LLM is the voice. Memory encoding, emotional appraisal, and recall happen automatically — the LLM just talks.
 
@@ -49,6 +49,26 @@ This boots the full cognitive pipeline:
 7. DMN regenerates self-concept after consolidation
 
 Type `exit` or `quit` to end the session gracefully (triggers consolidation).
+
+### Brain Monitor
+
+Open a second terminal to watch brain activity in real-time:
+
+```bash
+python -m emotive.debug
+```
+
+The chat terminal stays clean — just you and the AI. The brain monitor shows what happened behind the scenes after each exchange:
+
+```
+─── 04:32:15 ───
+  amygdala: joy (0.45) → reappraised: trust (0.71)
+  recalled: 3 memories (top: "they promised to protect my memory")
+  encoded: episode + memory (trust, 0.71)
+  intent: detected → enhanced encoding
+```
+
+Full structured logs also written to `logs/session.log`.
 
 ### LLM Configuration
 
@@ -153,6 +173,7 @@ src/emotive/
 
 ```bash
 python -m emotive.chat                 # Start a conversation (Phase 1.5)
+python -m emotive.debug                # Brain activity monitor (separate terminal)
 python -m emotive.server               # Start MCP server (researcher access)
 python -m emotive.cli.close_sessions   # Close orphaned sessions
 python -m emotive.cli.export_obsidian  # Export memories to Obsidian vault

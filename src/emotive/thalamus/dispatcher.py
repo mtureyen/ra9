@@ -51,6 +51,7 @@ class Thalamus:
 
         self._sensory = SensoryBuffer()
         self._conv_id: uuid.UUID | None = None
+        self.last_debug: dict | None = None
 
     @property
     def conversation_id(self) -> uuid.UUID | None:
@@ -65,6 +66,9 @@ class Thalamus:
 
         The critical path (pre-LLM) blocks until context is ready.
         Post-processing is fire-and-forget — failures logged, never crash.
+
+        Yields text chunks from the LLM. After completion, self.last_debug
+        contains the brain activity summary for the exchange.
         """
         # === CRITICAL PATH (blocking) ===
 
@@ -143,10 +147,18 @@ class Thalamus:
         response_text = "".join(full_response)
 
         # === POST-PROCESSING (fire-and-forget) ===
-        self._post_process(
+        debug = self._post_process(
             user_message, response_text, fast_appraisal,
             sensitivity=sensitivity, resilience=resilience,
         )
+
+        # Store debug info for the terminal to display
+        debug["recalled_count"] = len(recalled)
+        debug["recalled_top"] = (
+            recalled[0].get("content", "")[:80] if recalled else None
+        )
+        debug["gist_compressed"] = len(exited) if exited else 0
+        self.last_debug = debug
 
     def _post_process(
         self,
@@ -156,10 +168,23 @@ class Thalamus:
         *,
         sensitivity: float = 0.5,
         resilience: float = 0.5,
-    ) -> None:
+    ) -> dict:
         """Non-blocking post-processing. Each step wrapped independently.
-        One failure doesn't stop the others. Never crashes the chat."""
+        One failure doesn't stop the others. Never crashes the chat.
+
+        Returns a debug summary of what the brain did.
+        """
         config = self._app.config_manager.get()
+        debug = {
+            "fast_emotion": fast_appraisal.primary_emotion,
+            "fast_intensity": fast_appraisal.intensity,
+            "reappraised": False,
+            "final_emotion": fast_appraisal.primary_emotion,
+            "final_intensity": fast_appraisal.intensity,
+            "encoded": False,
+            "episode_id": None,
+            "intent_detected": False,
+        }
 
         # 1. Slow appraisal (can override fast pass)
         final = fast_appraisal
@@ -170,21 +195,29 @@ class Thalamus:
                 resilience=resilience,
                 formative_threshold=config.episodes.formative_intensity_threshold,
             )
+            debug["reappraised"] = final is not fast_appraisal
+            debug["final_emotion"] = final.primary_emotion
+            debug["final_intensity"] = final.intensity
         except Exception:
             logger.exception("Amygdala slow pass failed, using fast pass")
 
         # 2. Hippocampus: reset exchange counter + episode creation + encoding
         try:
             self.hippocampus.reset_exchange()
-            self.hippocampus.process_appraisal(
+            memory, episode_id = self.hippocampus.process_appraisal(
                 final, user_msg, llm_response, self._conv_id
             )
+            if memory is not None:
+                debug["encoded"] = True
+                debug["episode_id"] = str(episode_id)
         except Exception:
             logger.exception("Hippocampus encoding failed")
 
         # 3. Hippocampus: conscious intent detection
         try:
-            self.hippocampus.detect_intent(llm_response, self._conv_id)
+            debug["intent_detected"] = self.hippocampus.detect_intent(
+                llm_response, self._conv_id
+            )
         except Exception:
             logger.exception("Intent detection failed")
 
@@ -204,6 +237,8 @@ class Thalamus:
             },
             conversation_id=self._conv_id,
         )
+
+        return debug
 
 
 def _temperament_to_dict(temp: Temperament) -> dict:

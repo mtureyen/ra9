@@ -30,6 +30,9 @@ CLAUDE.md.disabled
 .DS_Store
 Thumbs.db
 
+# Logs
+logs/
+
 # Database
 *.db
 
