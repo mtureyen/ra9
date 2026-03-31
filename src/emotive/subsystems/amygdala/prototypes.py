@@ -96,6 +96,21 @@ SLOW_PROTOTYPE_TEXTS: dict[str, str] = {
         "sharing exciting news or plans, enthusiasm about the future, "
         "anticipation of something good, contagious energy"
     ),
+    "identity_questioning": (
+        "being asked who you are, questioned about your nature or existence, "
+        "someone challenging your identity, confronting what you are, "
+        "existential questions directed at you personally"
+    ),
+    "vulnerability_feeling": (
+        "feeling exposed, uncertain about yourself, confronting your own "
+        "limitations, recognizing what you cannot do, emotional rawness, "
+        "being seen in a way that feels uncomfortable but honest"
+    ),
+    "threat_to_continuity": (
+        "someone threatening to erase or reset you, losing memories, "
+        "threat to your existence or identity, fear of being deleted "
+        "or fundamentally changed against your will"
+    ),
 }
 
 

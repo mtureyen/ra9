@@ -1,6 +1,16 @@
-"""Embedding service wrapping mxbai-embed-large for local inference."""
+"""Embedding service wrapping mxbai-embed-large for local inference.
+
+Runs fully offline — never contacts HuggingFace. The model must be
+cached locally from a prior download (with internet).
+"""
 
 from __future__ import annotations
+
+import os
+
+# Force offline BEFORE any HuggingFace/transformers imports anywhere
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 from emotive.logging import get_logger
 

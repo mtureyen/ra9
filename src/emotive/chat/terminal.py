@@ -164,6 +164,7 @@ async def run_terminal() -> None:
     })
 
     # 4. Chat loop
+    interrupted = False
     try:
         while True:
             try:
@@ -181,20 +182,30 @@ async def run_terminal() -> None:
             try:
                 async for chunk in thalamus.process_input(user_input):
                     print(chunk, end="", flush=True)
-                print()
+                print()  # newline after response
+                print()  # blank line before next "You: " prompt
 
                 # Write brain activity to debug log (not to chat terminal)
                 if thalamus.last_debug:
                     _write_brain_status(brain_log, thalamus.last_debug)
 
+            except KeyboardInterrupt:
+                print("\n[interrupted]")
+                interrupted = True
+                break
+            except asyncio.CancelledError:
+                print("\n[interrupted]")
+                interrupted = True
+                break
             except Exception:
                 print("\n[Error generating response]", flush=True)
                 logger.exception("Error during process_input")
 
     except KeyboardInterrupt:
+        interrupted = True
         print()
 
-    # 5. Graceful shutdown
+    # 5. Graceful shutdown — always runs, even on Ctrl+C
     print("\nEnding session...", flush=True)
     try:
         result = end_session(thalamus)

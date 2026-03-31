@@ -84,6 +84,7 @@ class OllamaAdapter(LLMAdapter):
             "options": {
                 "temperature": self._temperature,
                 "num_predict": self._max_tokens,
+                "stop": ["You:", "User:", "\nYou:", "\nUser:"],
             },
         }
 

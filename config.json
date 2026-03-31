@@ -45,7 +45,7 @@
   },
   "unconscious_encoding": {
     "enabled": true,
-    "intensity_threshold": 0.4,
+    "intensity_threshold": 0.55,
     "max_per_exchange": 3,
     "cooldown_seconds": 10
   },

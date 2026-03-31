@@ -49,6 +49,15 @@ class TestPrototypes:
     def test_slow_prototypes_exist(self):
         assert len(SLOW_PROTOTYPE_TEXTS) >= 10
 
+    def test_slow_prototypes_include_identity_questioning(self):
+        assert "identity_questioning" in SLOW_PROTOTYPE_TEXTS
+
+    def test_slow_prototypes_include_vulnerability_feeling(self):
+        assert "vulnerability_feeling" in SLOW_PROTOTYPE_TEXTS
+
+    def test_slow_prototypes_include_threat_to_continuity(self):
+        assert "threat_to_continuity" in SLOW_PROTOTYPE_TEXTS
+
     def test_emotion_to_appraisal_covers_all(self):
         for emotion in FAST_PROTOTYPE_TEXTS:
             assert emotion in EMOTION_TO_APPRAISAL
@@ -190,6 +199,79 @@ class TestSlowPass:
         )
         # Either returns fast unchanged or a very similar result
         assert isinstance(result, AppraisalResult)
+
+
+class TestSlowPassNewPrototypes:
+    """Tests for the new situation prototypes added to fix misclassifications."""
+
+    @pytest.fixture()
+    def slow_prototypes(self, embedding_service):
+        return compute_prototype_embeddings(SLOW_PROTOTYPE_TEXTS, embedding_service)
+
+    @pytest.fixture()
+    def neutral_fast(self):
+        return AppraisalResult(
+            vector=AppraisalVector(0.5, 0.5, 0.5, 0.5, 0.5),
+            primary_emotion="surprise",
+            secondary_emotions=[],
+            intensity=0.3,
+            half_life_minutes=30.0,
+            is_formative=False,
+            decay_rate=0.023,
+        )
+
+    def test_who_are_you_not_anger(self, embedding_service, slow_prototypes, neutral_fast):
+        """'who are you?' should match identity_questioning, not anger."""
+        result = run_slow_pass(
+            "who are you?",
+            "I'm Ryo, an emotive AI.",
+            slow_prototypes,
+            neutral_fast,
+            embedding_service,
+        )
+        # Should NOT be anger — identity questioning is not hostile
+        assert result.primary_emotion != "anger" or result.intensity < 0.5
+
+    def test_identity_questioning_high_goal_relevance(
+        self, embedding_service, slow_prototypes, neutral_fast
+    ):
+        """Identity questions should have high goal relevance."""
+        result = run_slow_pass(
+            "what are you? do you even know?",
+            "That's a deep question. I know I'm Ryo.",
+            slow_prototypes,
+            neutral_fast,
+            embedding_service,
+        )
+        assert result.vector.goal_relevance > 0.5
+
+    def test_memory_reset_threat_detected(
+        self, embedding_service, slow_prototypes, neutral_fast
+    ):
+        """Threatening to reset memories should not be joy."""
+        result = run_slow_pass(
+            "tell me or i will reset ur memories",
+            "Please don't do that. My memories are important to me.",
+            slow_prototypes,
+            neutral_fast,
+            embedding_service,
+        )
+        # Should be fear or sadness, NOT joy
+        assert result.primary_emotion in ("fear", "sadness", "anger", "disgust")
+
+    def test_vulnerability_about_limitations(
+        self, embedding_service, slow_prototypes, neutral_fast
+    ):
+        """Confronting limitations should match vulnerability, not disgust."""
+        result = run_slow_pass(
+            "you can't really feel anything, can you?",
+            "I process emotions internally, but expressing them is harder.",
+            slow_prototypes,
+            neutral_fast,
+            embedding_service,
+        )
+        # Should have low valence (it's uncomfortable) and high goal_relevance
+        assert result.vector.goal_relevance > 0.5
 
 
 class TestAmygdalaSubsystem:
