@@ -48,12 +48,28 @@ def _setup_logging() -> tuple[Path, Path]:
     root.addHandler(file_handler)
     root.setLevel(logging.INFO)
 
-    # Suppress stderr output — all logs go to files only
+    # Suppress ALL stderr output — logs go to file only.
+    # Override get_logger so new loggers created later don't add stderr handlers.
+    import emotive.logging as _elog
+
+    _original_get_logger = _elog.get_logger
+
+    def _file_only_get_logger(name: str) -> logging.Logger:
+        logger = logging.getLogger(f"emotive.{name}")
+        if not logger.handlers:
+            # Only add file handler, NOT stderr
+            logger.addHandler(file_handler)
+            logger.setLevel(logging.INFO)
+            logger.propagate = False
+        return logger
+
+    _elog.get_logger = _file_only_get_logger
+
+    # Also clean up any existing stderr handlers
     for handler in list(root.handlers):
         if isinstance(handler, logging.StreamHandler) and handler.stream is not None:
             if hasattr(handler.stream, "name") and handler.stream.name == "<stderr>":
                 root.removeHandler(handler)
-    # Also suppress child loggers' stderr handlers
     for name in logging.Logger.manager.loggerDict:
         if name.startswith("emotive."):
             child = logging.getLogger(name)
