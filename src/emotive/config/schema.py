@@ -81,6 +81,77 @@ class EpisodeConfig(BaseModel):
     )
 
 
+class UnconsciousEncodingConfig(BaseModel):
+    """Settings for automatic memory encoding (Phase 1.5+)."""
+
+    enabled: bool = True
+    intensity_threshold: float = Field(
+        default=0.4, ge=0.0, le=1.0,
+        description="Minimum appraisal intensity to trigger encoding",
+    )
+    max_per_exchange: int = Field(
+        default=3, ge=1,
+        description="Maximum memories encoded per exchange",
+    )
+    cooldown_seconds: float = Field(
+        default=10.0, ge=0.0,
+        description="Minimum seconds between encoding events",
+    )
+
+
+class AutoRecallConfig(BaseModel):
+    """Settings for automatic memory retrieval (Phase 1.5+)."""
+
+    enabled: bool = True
+    limit: int = Field(default=10, ge=1, description="Max memories to recall")
+    include_spreading: bool = True
+
+
+class GistConfig(BaseModel):
+    """Settings for conversation gist compression (Phase 1.5+)."""
+
+    active_buffer_size: int = Field(
+        default=6, ge=2, le=20,
+        description="Number of turns kept in active buffer",
+    )
+    primacy_pins: int = Field(
+        default=2, ge=0, le=4,
+        description="First N turns pinned with decay resistance",
+    )
+
+
+class SelfSchemaConfig(BaseModel):
+    """Settings for DMN-analog self-schema generation (Phase 1.5+)."""
+
+    enabled: bool = True
+    max_traits: int = Field(default=10, ge=1)
+    max_core_facts: int = Field(default=10, ge=1)
+    max_values: int = Field(default=5, ge=1)
+
+
+class LLMProviderConfig(BaseModel):
+    """Settings for LLM provider (Phase 1.5+)."""
+
+    provider: str = Field(
+        default="ollama",
+        description="LLM provider: 'ollama' or 'anthropic'",
+    )
+    host: str = Field(
+        default="http://localhost:11434",
+        description="Ollama host URL",
+    )
+    model: str = Field(
+        default="qwen2.5:14b",
+        description="Model name/ID",
+    )
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=4096, ge=1)
+    api_key: str | None = Field(
+        default=None,
+        description="API key (Anthropic provider only)",
+    )
+
+
 class EmotiveConfig(BaseModel):
     """Root configuration for the Emotive AI system."""
 
@@ -95,5 +166,14 @@ class EmotiveConfig(BaseModel):
     consolidation: ConsolidationConfig = Field(default_factory=ConsolidationConfig)
     decay: DecayConfig = Field(default_factory=DecayConfig)
     episodes: EpisodeConfig = Field(default_factory=EpisodeConfig)
+
+    # Phase 1.5: cognitive pipeline config
+    unconscious_encoding: UnconsciousEncodingConfig = Field(
+        default_factory=UnconsciousEncodingConfig,
+    )
+    auto_recall: AutoRecallConfig = Field(default_factory=AutoRecallConfig)
+    gist: GistConfig = Field(default_factory=GistConfig)
+    self_schema: SelfSchemaConfig = Field(default_factory=SelfSchemaConfig)
+    llm: LLMProviderConfig = Field(default_factory=LLMProviderConfig)
 
     embedding_model: str = "mixedbread-ai/mxbai-embed-large-v1"

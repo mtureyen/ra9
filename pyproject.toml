@@ -17,9 +17,11 @@ dependencies = [
     "pydantic>=2.0,<3.0",
     "pydantic-settings>=2.0,<3.0",
     "python-dotenv>=1.0",
+    "httpx>=0.27,<1.0",
 ]
 
 [project.optional-dependencies]
+anthropic = ["anthropic>=0.40,<1.0"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -30,6 +32,7 @@ dev = [
 [project.scripts]
 emotive-close-sessions = "emotive.cli.close_sessions:close_open_sessions"
 emotive-export-obsidian = "emotive.cli.export_obsidian:export"
+emotive-chat = "emotive.chat.terminal:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/emotive"]

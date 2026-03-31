@@ -11,9 +11,8 @@ from sqlalchemy.orm import Session
 
 from emotive.db.models.episode import EmotionalEpisode
 from emotive.layers.appraisal import AppraisalResult
-from emotive.runtime.event_bus import EventBus
+from emotive.runtime.event_bus import EPISODE_CREATED, EventBus
 
-EPISODE_CREATED = "episode_created"
 EPISODE_ARCHIVED = "episode_archived"
 
 

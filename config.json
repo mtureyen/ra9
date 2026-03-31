@@ -35,5 +35,23 @@
     "formative_intensity_threshold": 0.8,
     "encoding_strength_weight": 0.8
   },
-  "embedding_model": "mixedbread-ai/mxbai-embed-large-v1"
+  "embedding_model": "mixedbread-ai/mxbai-embed-large-v1",
+  "llm": {
+    "provider": "ollama",
+    "host": "http://localhost:11434",
+    "model": "qwen2.5:14b",
+    "temperature": 0.7,
+    "max_tokens": 4096
+  },
+  "unconscious_encoding": {
+    "enabled": true,
+    "intensity_threshold": 0.4,
+    "max_per_exchange": 3,
+    "cooldown_seconds": 10
+  },
+  "auto_recall": {
+    "enabled": true,
+    "limit": 10,
+    "include_spreading": true
+  }
 }

@@ -23,6 +23,17 @@ CONSOLIDATION_COMPLETED = "consolidation_completed"
 CONFIG_CHANGED = "config_changed"
 WORKING_MEMORY_EVICTED = "working_memory_evicted"
 
+# Phase 1.5: cognitive pipeline events
+INPUT_RECEIVED = "input_received"
+FAST_APPRAISAL_COMPLETE = "fast_appraisal_complete"
+APPRAISAL_COMPLETE = "appraisal_complete"
+MEMORIES_RECALLED = "memories_recalled"
+RESPONSE_GENERATED = "response_generated"
+ENCODING_COMPLETE = "encoding_complete"
+EPISODE_CREATED = "episode_created"
+GIST_CREATED = "gist_created"
+SELF_SCHEMA_REGENERATED = "self_schema_regenerated"
+
 Handler = Callable[[str, dict[str, Any]], None]
 
 

@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from emotive.config import ConfigManager
 from emotive.embeddings.service import EmbeddingService
 from emotive.runtime.event_bus import EventBus
+
+if TYPE_CHECKING:
+    from emotive.thalamus.dispatcher import Thalamus
 
 
 @dataclass
@@ -17,3 +21,5 @@ class AppContext:
     embedding_service: EmbeddingService
     config_manager: ConfigManager
     event_bus: EventBus
+    # Phase 1.5: thalamus orchestrator (set after initialization)
+    thalamus: Thalamus | None = field(default=None, repr=False)

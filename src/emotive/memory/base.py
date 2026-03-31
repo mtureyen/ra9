@@ -128,6 +128,7 @@ def recall_memories(
     embedding_service: EmbeddingService,
     *,
     query: str,
+    query_embedding: list[float] | None = None,
     memory_type: str | None = None,
     limit: int = 5,
     include_spreading: bool = True,
@@ -144,8 +145,12 @@ def recall_memories(
 
     Phase 0.5 brain-closer: co-recalled memories get linked together,
     strengthening associations between things accessed in the same context.
+
+    If query_embedding is provided, skips the embed step (used by the
+    thalamus to share a single embedding across subsystems).
     """
-    query_embedding = embedding_service.embed_text(query)
+    if query_embedding is None:
+        query_embedding = embedding_service.embed_text(query)
 
     # Step 1: Vector search (fetch more candidates than limit for spreading)
     candidates = search_by_embedding(
