@@ -130,7 +130,10 @@ def _format_memories(memories: list[dict]) -> str:
     for mem in memories[:10]:  # Hard limit to prevent context overload
         content = mem.get("content", "")[:200]
         mem_type = mem.get("memory_type", "unknown")
-        lines.append(f"- [{mem_type}] {content}")
+        if mem.get("_novelty_nudge"):
+            lines.append(f"- [nudge] Something you haven't thought about recently: {content}")
+        else:
+            lines.append(f"- [{mem_type}] {content}")
     return "\n".join(lines)
 
 

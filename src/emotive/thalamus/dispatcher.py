@@ -54,6 +54,10 @@ class Thalamus:
         self._last_recalled: list[dict] | None = None
         self.last_debug: dict | None = None
 
+        # ACC repetition monitor (locus coeruleus novelty nudge)
+        from emotive.subsystems.hippocampus.repetition import RepetitionMonitor
+        self._repetition_monitor = RepetitionMonitor()
+
     @property
     def conversation_id(self) -> uuid.UUID | None:
         return self._conv_id
@@ -120,6 +124,17 @@ class Thalamus:
         recalled = self.association_cortex.recall(
             input_embedding, processed.text, self._conv_id
         )
+
+        # 3b. Novelty nudge: if stuck from previous exchange, inject new stimulus
+        if self._repetition_monitor.is_stuck:
+            if not self._repetition_monitor.cancel_nudge(fast_appraisal.vector.novelty):
+                try:
+                    nudge = self._get_novelty_nudge(input_embedding, recalled)
+                    if nudge:
+                        recalled.append(nudge)
+                        logger.info("Novelty nudge injected: %s", nudge.get("content", "")[:60])
+                except Exception:
+                    logger.exception("Novelty nudge failed")
 
         # 4. Update buffer with FULL text, compress gists for exited turns
         exited = self.prefrontal.add_turn("user", user_message)
@@ -239,7 +254,20 @@ class Thalamus:
         except Exception:
             logger.exception("PFC buffer update failed")
 
-        # 5. Publish for any subscribers (future mood, etc.)
+        # 5. ACC repetition check: embed response, track novelty
+        try:
+            response_embedding = self._app.embedding_service.embed_text(
+                llm_response[:500]
+            )
+            stuck = self._repetition_monitor.update(
+                response_embedding, fast_appraisal.vector.novelty
+            )
+            debug["loop_detected"] = stuck
+        except Exception:
+            logger.exception("Repetition monitor failed")
+            debug["loop_detected"] = False
+
+        # 6. Publish for any subscribers (future mood, etc.)
         self._bus.publish(
             RESPONSE_GENERATED,
             {
@@ -251,6 +279,41 @@ class Thalamus:
         )
 
         return debug
+
+
+    def _get_novelty_nudge(
+        self,
+        input_embedding: list[float],
+        already_recalled: list[dict],
+    ) -> dict | None:
+        """Locus coeruleus + PFC: find a relevant-but-different memory.
+
+        Uses vector search from input but EXCLUDES already-recalled
+        memories. Finds something topically connected but from a different
+        cluster — a new angle on the current conversation.
+        """
+        already_ids = {str(m.get("id")) for m in already_recalled}
+
+        session = self._app.session_factory()
+        try:
+            from emotive.db.queries.memory_queries import search_by_embedding
+
+            candidates = search_by_embedding(
+                session, input_embedding, limit=20,
+            )
+            # Filter out already recalled
+            candidates = [
+                c for c in candidates if str(c["id"]) not in already_ids
+            ]
+            if candidates:
+                # Pick the least similar (most different but still relevant)
+                candidates.sort(key=lambda c: c.get("similarity", 0))
+                nudge = candidates[0]
+                nudge["_novelty_nudge"] = True
+                return nudge
+        finally:
+            session.close()
+        return None
 
 
 def _temperament_to_dict(temp: Temperament) -> dict:

@@ -87,8 +87,9 @@ def boot_session(thalamus: Thalamus) -> uuid.UUID:
 
         session.commit()
 
-        # Set conversation ID on thalamus
+        # Set conversation ID on thalamus + reset repetition monitor
         thalamus.conversation_id = conv_id
+        thalamus._repetition_monitor.reset()
 
         logger.info("Session booted: %s", conv_id)
         return conv_id
@@ -173,8 +174,9 @@ def end_session(thalamus: Thalamus) -> dict:
         conversation_id=conv_id,
     )
 
-    # 6. Clear PFC buffer
+    # 6. Clear PFC buffer + reset repetition monitor
     thalamus.prefrontal.clear()
+    thalamus._repetition_monitor.reset()
     thalamus.conversation_id = None
 
     logger.info("Session ended: %s", conv_id)

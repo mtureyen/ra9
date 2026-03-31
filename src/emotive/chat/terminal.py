@@ -100,6 +100,10 @@ def _write_brain_status(brain_log: Path, debug: dict) -> None:
     if debug.get("intent_detected"):
         lines.append("  intent: detected → enhanced encoding")
 
+    # Loop detection
+    if debug.get("loop_detected"):
+        lines.append("  loop: detected → novelty nudge queued for next exchange")
+
     # Gist
     gist_count = debug.get("gist_compressed", 0)
     if gist_count > 0:
