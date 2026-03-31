@@ -51,6 +51,7 @@ class Thalamus:
 
         self._sensory = SensoryBuffer()
         self._conv_id: uuid.UUID | None = None
+        self._last_recalled: list[dict] | None = None
         self.last_debug: dict | None = None
 
     @property
@@ -147,6 +148,9 @@ class Thalamus:
         response_text = "".join(full_response)
 
         # === POST-PROCESSING (fire-and-forget) ===
+        # Store recalled for context tag inheritance
+        self._last_recalled = recalled
+
         debug = self._post_process(
             user_message, response_text, fast_appraisal,
             sensitivity=sensitivity, resilience=resilience,
@@ -202,10 +206,18 @@ class Thalamus:
             logger.exception("Amygdala slow pass failed, using fast pass")
 
         # 2. Hippocampus: reset exchange counter + episode creation + encoding
+        #    Pass context tags from recalled memories (context inheritance)
+        context_tags = []
+        for mem in (self._last_recalled or []):
+            for tag in mem.get("tags", []):
+                if tag not in context_tags:
+                    context_tags.append(tag)
+
         try:
             self.hippocampus.reset_exchange()
             memory, episode_id = self.hippocampus.process_appraisal(
-                final, user_msg, llm_response, self._conv_id
+                final, user_msg, llm_response, self._conv_id,
+                context_tags=context_tags if context_tags else None,
             )
             if memory is not None:
                 debug["encoded"] = True

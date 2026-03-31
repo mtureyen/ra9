@@ -215,6 +215,12 @@ def _extract(
     )
     unconsolidated = list(session.execute(stmt).scalars().all())
 
+    # ACC protection: don't promote contradiction-tagged memories to semantic
+    unconsolidated = [
+        m for m in unconsolidated
+        if "contradiction" not in (m.tags or [])
+    ]
+
     if len(unconsolidated) < config.consolidation.cluster_min_size:
         for m in unconsolidated:
             m.consolidated_at = m.created_at

@@ -229,4 +229,27 @@ def recall_memories(
                     boost=0.05,
                 )
 
+    # --- Reconsolidation: update tags on already-labile memories ---
+    # When a memory was already labile (recalled recently) and is recalled
+    # again in a new context, it picks up tags from the co-active memories.
+    # This mirrors how human memories gain new meaning when recalled in
+    # different contexts.
+    _EXCLUDED_TAGS = {"gist", "conversation_summary", "conscious_intent"}
+    all_context_tags: set[str] = set()
+    for r in results:
+        all_context_tags.update(t for t in (r.get("tags") or []) if t not in _EXCLUDED_TAGS)
+
+    for r in results:
+        was_already_labile = r.get("is_labile", False)
+        if was_already_labile and all_context_tags:
+            existing = set(r.get("tags") or [])
+            new_tags = [t for t in all_context_tags if t not in existing]
+            if new_tags:
+                updated = list(existing) + new_tags[:3]
+                session.execute(
+                    Memory.__table__.update()
+                    .where(Memory.__table__.c.id == r["id"])
+                    .values(tags=updated)
+                )
+
     return results

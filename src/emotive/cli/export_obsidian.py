@@ -33,12 +33,18 @@ def memory_to_markdown(
     if mem.metadata_ and "significance" in mem.metadata_:
         significance = f"\nsignificance: {mem.metadata_['significance']}"
 
-    tags_str = ", ".join(mem.tags) if mem.tags else ""
+    # YAML list format for Obsidian tag support
+    if mem.tags:
+        tags_yaml = "\ntags:\n" + "\n".join(f"  - {t}" for t in mem.tags)
+    else:
+        tags_yaml = "\ntags: []"
+
+    # Hashtags in body for clickability
+    hashtags = " ".join(f"#{t}" for t in mem.tags) if mem.tags else ""
 
     md = f"""---
 id: {mem.id}
-type: {mem.memory_type}
-tags: [{tags_str}]
+type: {mem.memory_type}{tags_yaml}
 confidence: {mem.confidence}
 detail_retention: {mem.detail_retention}
 decay_rate: {mem.decay_rate}
@@ -48,6 +54,8 @@ created_at: {mem.created_at}
 ---
 
 # {mem.content[:80]}
+
+{hashtags}
 
 {mem.content}
 """

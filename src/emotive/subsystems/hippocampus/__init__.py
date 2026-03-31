@@ -47,8 +47,12 @@ class Hippocampus(Subsystem):
         user_message: str,
         llm_response: str,
         conversation_id: uuid.UUID | None = None,
+        context_tags: list[str] | None = None,
     ) -> tuple[Memory | None, uuid.UUID | None]:
         """Process a final appraisal result — encode if significant.
+
+        context_tags: tags from co-active memories (passed from thalamus).
+        These are inherited by the new memory — context inheritance.
 
         Returns (memory, episode_id) or (None, None).
         """
@@ -74,6 +78,7 @@ class Hippocampus(Subsystem):
                 conversation_id=conversation_id,
                 sensitivity=sensitivity,
                 resilience=resilience,
+                context_tags=context_tags,
                 event_bus=self._bus,
             )
             session.commit()
