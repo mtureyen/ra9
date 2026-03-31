@@ -27,22 +27,63 @@ logger = get_logger("hippocampus.encoding")
 
 
 class UnconsciousEncoder:
-    """Manages rate-limited unconscious encoding."""
+    """Manages rate-limited unconscious encoding with dynamic threshold.
+
+    The encoding threshold is modulated by arousal context — like the
+    locus coeruleus releasing norepinephrine. High social significance,
+    high novelty, or active emotional episodes lower the threshold,
+    making more exchanges significant enough to encode.
+
+    Brain analog: locus coeruleus arousal modulation of hippocampal encoding.
+    """
 
     def __init__(self, config: UnconsciousEncodingConfig) -> None:
-        self._threshold = config.intensity_threshold
+        self._base_threshold = config.intensity_threshold
         self._max_per_exchange = config.max_per_exchange
         self._cooldown = config.cooldown_seconds
         self._last_encode_time: float = 0.0
         self._exchange_count: int = 0
+        self._episode_heat: float = 0.0  # decays over exchanges
 
     def reset_exchange(self) -> None:
         """Call at the start of each exchange to reset per-exchange counter."""
         self._exchange_count = 0
+        # Episode heat decays each exchange (lingering arousal fades)
+        self._episode_heat *= 0.7
 
-    def should_encode(self, intensity: float) -> bool:
-        """Check if encoding should proceed based on thresholds and limits."""
-        if intensity < self._threshold:
+    def compute_dynamic_threshold(self, appraisal: AppraisalResult) -> float:
+        """Compute the effective encoding threshold based on arousal context.
+
+        Locus coeruleus modulation:
+        - High novelty → threshold drops (unexpected content encodes easier)
+        - High social significance → threshold drops (personal content encodes easier)
+        - Active episode heat → threshold drops (emotional context lingers)
+
+        Returns the effective threshold (lower = more encodes).
+        """
+        arousal_modifier = (
+            appraisal.vector.novelty * 0.15
+            + appraisal.vector.social_significance * 0.15
+            + self._episode_heat * 0.10
+        )
+        effective = self._base_threshold - arousal_modifier
+        # Floor at 0.15 — even in maximum arousal, need minimal intensity
+        return max(effective, 0.15)
+
+    def should_encode(
+        self, intensity: float, appraisal: AppraisalResult | None = None
+    ) -> bool:
+        """Check if encoding should proceed.
+
+        Uses dynamic threshold if appraisal is provided, falls back
+        to base threshold otherwise (backwards compatible).
+        """
+        if appraisal is not None:
+            threshold = self.compute_dynamic_threshold(appraisal)
+        else:
+            threshold = self._base_threshold
+
+        if intensity < threshold:
             return False
         if self._exchange_count >= self._max_per_exchange:
             return False
@@ -50,6 +91,13 @@ class UnconsciousEncoder:
         if elapsed < self._cooldown and self._last_encode_time > 0:
             return False
         return True
+
+    def record_encoding(self, intensity: float) -> None:
+        """Record that encoding happened — boosts episode heat."""
+        self._exchange_count += 1
+        self._last_encode_time = time.monotonic()
+        # Successful encoding boosts episode heat (brain stays "hot")
+        self._episode_heat = min(self._episode_heat + intensity * 0.5, 1.0)
 
     # Tags to exclude from context inheritance
     _EXCLUDED_TAGS = frozenset({"gist", "conversation_summary", "conscious_intent"})
@@ -74,7 +122,7 @@ class UnconsciousEncoder:
 
         Returns (memory, episode_id) or (None, None) if below threshold.
         """
-        if not self.should_encode(appraisal.intensity):
+        if not self.should_encode(appraisal.intensity, appraisal):
             return None, None
 
         # Build tags: emotion + context from co-active memories
@@ -130,13 +178,13 @@ class UnconsciousEncoder:
             memory.metadata_["conflict_score"] = conflict_score
             session.flush()
 
-        self._exchange_count += 1
-        self._last_encode_time = time.monotonic()
+        self.record_encoding(appraisal.intensity)
 
         logger.info(
-            "Unconscious encoding: %s (%.2f) → episode %s, memory %s",
+            "Unconscious encoding: %s (%.2f, threshold=%.2f) → episode %s, memory %s",
             appraisal.primary_emotion,
             appraisal.intensity,
+            self.compute_dynamic_threshold(appraisal),
             episode.id,
             memory.id,
         )
