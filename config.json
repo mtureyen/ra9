@@ -1,9 +1,9 @@
 {
-  "phase": 1,
+  "phase": 2,
   "layers": {
     "temperament": true,
     "episodes": true,
-    "mood": false,
+    "mood": true,
     "personality": false,
     "identity": false
   },

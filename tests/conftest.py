@@ -91,14 +91,14 @@ def config():
 def config_manager(tmp_path):
     import json
 
-    # Write Phase 1 config so emotional tools are enabled in tests
+    # Write Phase 2 config so emotional + mood tools are enabled in tests
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps({
-        "phase": 1,
+        "phase": 2,
         "layers": {
             "temperament": True,
             "episodes": True,
-            "mood": False,
+            "mood": True,
             "personality": False,
             "identity": False,
         },

@@ -69,7 +69,16 @@ def boot_session(thalamus: Thalamus) -> uuid.UUID:
         if temp:
             logger.info("Temperament loaded (sensitivity=%.2f)", temp.sensitivity)
 
-        # 5. Count active episodes
+        # 5. Load mood state (applies homeostasis for elapsed time)
+        if config.layers.mood:
+            try:
+                mood = thalamus.mood.load()
+                shifted = {d: v for d, v in mood.items() if abs(v - 0.5) > 0.03}
+                logger.info("Mood loaded: %s", shifted if shifted else "baseline")
+            except Exception:
+                logger.exception("Mood load failed at boot")
+
+        # 6. Count active episodes
         active_count = 0
         if config.layers.episodes:
             active_count = len(get_active_episodes(session))
@@ -167,7 +176,16 @@ def end_session(thalamus: Thalamus) -> dict:
             logger.exception("Post-session DMN regeneration failed")
             result["self_schema_regenerated"] = False
 
-    # 5. Publish session ended
+    # 5. Save mood state to DB
+    if config.layers.mood:
+        try:
+            thalamus.mood.save()
+            result["mood_saved"] = True
+            logger.info("Mood saved at session end")
+        except Exception:
+            logger.exception("Mood save failed at session end")
+
+    # 6. Publish session ended
     app.event_bus.publish(
         SESSION_ENDED,
         result,

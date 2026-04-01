@@ -26,6 +26,7 @@ def build_system_prompt(
     recalled_memories: list[dict] | None = None,
     active_episodes: list[dict] | None = None,
     temperament: dict | None = None,
+    mood: dict | None = None,
     procedural_memories: list[dict] | None = None,
 ) -> str:
     """Assemble the enriched system prompt from all context sources."""
@@ -40,6 +41,9 @@ def build_system_prompt(
 
     if temperament:
         sections.append(_format_temperament(temperament))
+
+    if mood:
+        sections.append(_format_mood(mood))
 
     if emotional_state:
         sections.append(_format_emotional_state(emotional_state))
@@ -96,6 +100,24 @@ def _format_self_schema(schema: SelfSchema) -> str:
             people.append(f"{name} ({role})")
         lines.append("**People you know:** " + ", ".join(people))
 
+    return "\n".join(lines)
+
+
+def _format_mood(mood: dict) -> str:
+    """Format current mood for the system prompt."""
+    lines = ["## Your Current Mood"]
+    # Show dimensions that have shifted from baseline (0.5)
+    shifted = []
+    for dim, val in mood.items():
+        if abs(val - 0.5) > 0.03:  # small threshold — mood shifts are subtle
+            direction = "elevated" if val > 0.5 else "low"
+            shifted.append(f"{dim.replace('_', ' ')}: {direction} ({val:.2f})")
+    if shifted:
+        lines.append("Your emotional weather right now:")
+        for s in shifted:
+            lines.append(f"- {s}")
+    else:
+        lines.append("Your mood is near baseline — emotionally neutral.")
     return "\n".join(lines)
 
 

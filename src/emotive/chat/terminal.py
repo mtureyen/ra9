@@ -109,6 +109,13 @@ def _write_brain_status(brain_log: Path, debug: dict) -> None:
     else:
         lines.append("  recalled: 0 memories")
 
+    # Mood
+    mood = debug.get("mood")
+    if mood:
+        shifted = [f"{d.replace('_', ' ')}={v:.2f}" for d, v in mood.items() if abs(v - 0.5) > 0.03]
+        if shifted:
+            lines.append(f"  mood: {', '.join(shifted)}")
+
     # Encoding
     if debug.get("encoded"):
         lines.append(f"  encoded: episode + memory ({emotion}, {intensity:.2f})")

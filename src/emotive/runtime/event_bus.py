@@ -33,6 +33,7 @@ ENCODING_COMPLETE = "encoding_complete"
 EPISODE_CREATED = "episode_created"
 GIST_CREATED = "gist_created"
 SELF_SCHEMA_REGENERATED = "self_schema_regenerated"
+MOOD_UPDATED = "mood_updated"
 
 Handler = Callable[[str, dict[str, Any]], None]
 

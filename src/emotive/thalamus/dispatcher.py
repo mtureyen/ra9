@@ -25,6 +25,7 @@ from emotive.subsystems.amygdala import Amygdala
 from emotive.subsystems.association_cortex import AssociationCortex
 from emotive.subsystems.dmn import DefaultModeNetwork
 from emotive.subsystems.hippocampus import Hippocampus
+from emotive.subsystems.mood import MoodSubsystem
 from emotive.subsystems.prefrontal import PrefrontalCortex
 from emotive.subsystems.prefrontal.buffer import compress_to_gist
 
@@ -49,6 +50,7 @@ class Thalamus:
         self.prefrontal = PrefrontalCortex(app, self._bus)
         self.hippocampus = Hippocampus(app, self._bus)
         self.dmn = DefaultModeNetwork(app, self._bus)
+        self.mood = MoodSubsystem(app, self._bus)
         self.llm = create_adapter(config.llm)
 
         self._sensory = SensoryBuffer()
@@ -116,7 +118,17 @@ class Thalamus:
         finally:
             session.close()
 
-        # 2b. Load procedural memories (auto-activated every exchange, like self-schema)
+        # 2b. Mood: load current state (applies homeostasis for elapsed time)
+        mood_dict = None
+        if config.layers.mood:
+            try:
+                mood_dict = self.mood.load()
+                # Mood modulates amygdala sensitivity
+                sensitivity = self.mood.get_modulated_sensitivity(sensitivity)
+            except Exception:
+                logger.exception("Failed to load mood")
+
+        # 2c. Load procedural memories (auto-activated every exchange, like self-schema)
         procedural_memories: list[dict] = []
         try:
             procedural_memories = _load_procedural_memories(session)
@@ -161,6 +173,7 @@ class Thalamus:
             recalled_memories=recalled,
             active_episodes=active_episodes,
             temperament=temperament_dict,
+            mood=mood_dict,
             procedural_memories=procedural_memories if procedural_memories else None,
         )
 
@@ -187,6 +200,8 @@ class Thalamus:
             recalled[0].get("content", "")[:80] if recalled else None
         )
         debug["gist_compressed"] = len(exited) if exited else 0
+        if mood_dict:
+            debug["mood"] = mood_dict
         self.last_debug = debug
 
     def _post_process(

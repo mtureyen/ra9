@@ -70,6 +70,19 @@ class LayerConfig(BaseModel):
     identity: bool = False
 
 
+class MoodConfig(BaseModel):
+    """Settings for mood — neurochemical residue (Phase 2+)."""
+
+    residue_scale: float = Field(
+        default=1.0, ge=0.0, le=3.0,
+        description="Multiplier for episode residue on mood (1.0 = normal)",
+    )
+    sensitivity_influence: float = Field(
+        default=0.3, ge=0.0, le=1.0,
+        description="How much mood modulates amygdala sensitivity",
+    )
+
+
 class EpisodeConfig(BaseModel):
     """Settings for emotional episodes (Phase 1+)."""
 
@@ -166,6 +179,7 @@ class EmotiveConfig(BaseModel):
     consolidation: ConsolidationConfig = Field(default_factory=ConsolidationConfig)
     decay: DecayConfig = Field(default_factory=DecayConfig)
     episodes: EpisodeConfig = Field(default_factory=EpisodeConfig)
+    mood: MoodConfig = Field(default_factory=MoodConfig)
 
     # Phase 1.5: cognitive pipeline config
     unconscious_encoding: UnconsciousEncodingConfig = Field(
