@@ -44,7 +44,7 @@ class TestProceduralInContext:
             {"content": "Don't ask questions at the end of every response", "memory_type": "procedural"},
         ]
         prompt = build_system_prompt(procedural_memories=procedural)
-        assert "Learned Behaviors" in prompt
+        assert "Behavioral Instructions" in prompt
         assert "casual" in prompt
         assert "lowercase" in prompt
 
@@ -52,10 +52,10 @@ class TestProceduralInContext:
         from emotive.subsystems.prefrontal.context import build_system_prompt
 
         prompt = build_system_prompt(procedural_memories=None)
-        assert "Learned Behaviors" not in prompt
+        assert "Behavioral Instructions" not in prompt
 
     def test_empty_procedural_no_section(self):
         from emotive.subsystems.prefrontal.context import build_system_prompt
 
         prompt = build_system_prompt(procedural_memories=[])
-        assert "Learned Behaviors" not in prompt
+        assert "Behavioral Instructions" not in prompt

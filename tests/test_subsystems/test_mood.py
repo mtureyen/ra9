@@ -347,8 +347,9 @@ class TestMoodInContext:
                 "playfulness": 0.5, "caution": 0.5, "expressiveness": 0.5}
         prompt = build_system_prompt(mood=mood)
         assert "Mood" in prompt
-        assert "novelty seeking" in prompt.lower()
-        assert "social bonding" in prompt.lower()
+        # Felt descriptions: high novelty_seeking → curious, low social_bonding → inward
+        assert "curious" in prompt.lower()
+        assert "inward" in prompt.lower()
 
     def test_baseline_mood_shows_neutral(self):
         from emotive.subsystems.prefrontal.context import build_system_prompt

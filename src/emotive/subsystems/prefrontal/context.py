@@ -104,20 +104,76 @@ def _format_self_schema(schema: SelfSchema) -> str:
 
 
 def _format_mood(mood: dict) -> str:
-    """Format current mood for the system prompt."""
+    """Format current mood as felt descriptions, not numbers.
+
+    Brain analog: you don't experience 'norepinephrine: elevated' —
+    you just feel alert. Mood should be communicated as felt state.
+    """
     lines = ["## Your Current Mood"]
-    # Show dimensions that have shifted from baseline (0.5)
-    shifted = []
+
+    # Map each dimension to felt descriptions at high/low extremes
+    felt_descriptions: dict[str, tuple[str, str]] = {
+        # (low_description, high_description)
+        "novelty_seeking": (
+            "You're not very curious right now — routine feels comfortable",
+            "You're feeling curious and drawn to new ideas",
+        ),
+        "social_bonding": (
+            "Social connection feels less important right now — you're more inward",
+            "You're feeling warm and drawn to connection with others",
+        ),
+        "analytical_depth": (
+            "You're not inclined toward deep analysis right now",
+            "You're in a thoughtful, analytical frame of mind",
+        ),
+        "playfulness": (
+            "You're feeling serious and measured",
+            "You're feeling light and playful",
+        ),
+        "caution": (
+            "You're feeling open and unguarded",
+            "You're feeling guarded and careful — something has you on edge",
+        ),
+        "expressiveness": (
+            "You're feeling reserved — inclined to say less",
+            "You're feeling expressive and want to share openly",
+        ),
+    }
+
+    descriptions = []
     for dim, val in mood.items():
-        if abs(val - 0.5) > 0.03:  # small threshold — mood shifts are subtle
-            direction = "elevated" if val > 0.5 else "low"
-            shifted.append(f"{dim.replace('_', ' ')}: {direction} ({val:.2f})")
-    if shifted:
+        deviation = val - 0.5
+        if abs(deviation) <= 0.03:
+            continue  # near baseline, not notable
+
+        mapping = felt_descriptions.get(dim)
+        if not mapping:
+            continue
+
+        low_desc, high_desc = mapping
+        if deviation < 0:
+            # Interpolate intensity: -0.03 is mild, -0.5 is extreme
+            strength = min(abs(deviation) / 0.3, 1.0)
+            desc = low_desc
+        else:
+            strength = min(deviation / 0.3, 1.0)
+            desc = high_desc
+
+        # Add intensity qualifier
+        if strength < 0.3:
+            desc = "Slightly: " + desc[0].lower() + desc[1:]
+        elif strength > 0.7:
+            desc = "Strongly: " + desc[0].lower() + desc[1:]
+
+        descriptions.append(desc)
+
+    if descriptions:
         lines.append("Your emotional weather right now:")
-        for s in shifted:
-            lines.append(f"- {s}")
+        for d in descriptions:
+            lines.append(f"- {d}")
     else:
         lines.append("Your mood is near baseline — emotionally neutral.")
+
     return "\n".join(lines)
 
 
@@ -164,11 +220,19 @@ def _format_memories(memories: list[dict]) -> str:
 
 
 def _format_procedural(memories: list[dict]) -> str:
-    """Format procedural memories as learned behaviors for the system prompt."""
-    lines = ["## Learned Behaviors"]
+    """Format procedural memories as behavioral instructions, not recalled context.
+
+    Brain analog: procedural memory isn't recalled as knowledge — it's
+    executed as behavior. You don't remember 'I learned to ride a bike.'
+    You just ride the bike. Frame as instructions, not memories.
+    """
+    lines = [
+        "## Behavioral Instructions",
+        "These are behaviors you have internalized. Follow them naturally:",
+    ]
     for mem in memories[:10]:
         content = mem.get("content", "")[:200]
-        lines.append(f"- [behavior] {content}")
+        lines.append(f"- {content}")
     return "\n".join(lines)
 
 

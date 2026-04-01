@@ -1,6 +1,7 @@
-"""Phase 0.5 consolidation engine: promote, extract, link, decay, concept hubs.
+"""Consolidation engine: promote, extract, link, decay, concept hubs.
 
-No personality updates or identity checks — those come in later phases.
+Phase 2.5 upgrade: LLM-generated semantic summaries when adapter is available.
+The hippocampus extracts the gist, not a concatenation.
 """
 
 from __future__ import annotations
@@ -9,6 +10,7 @@ import time
 import uuid
 from collections import Counter
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -22,6 +24,7 @@ from emotive.db.queries.memory_queries import (
     find_similar_memories,
 )
 from emotive.embeddings.service import EmbeddingService
+from emotive.logging import get_logger
 from emotive.runtime.event_bus import (
     CONSOLIDATION_COMPLETED,
     CONSOLIDATION_STARTED,
@@ -31,6 +34,11 @@ from emotive.runtime.working_memory import WorkingMemory
 
 from .episodic import store_episodic
 from .semantic import extract_semantic_from_cluster
+
+if TYPE_CHECKING:
+    from emotive.llm.adapter import LLMAdapter
+
+logger = get_logger("memory.consolidation")
 
 
 def run_consolidation(
@@ -42,6 +50,7 @@ def run_consolidation(
     conversation_id: uuid.UUID | None = None,
     trigger_type: str = "conversation_end",
     event_bus: EventBus | None = None,
+    llm: LLMAdapter | None = None,
 ) -> dict:
     """Run the Phase 0.5 consolidation pipeline.
 
@@ -88,17 +97,19 @@ def run_consolidation(
         event_bus=event_bus,
     )
 
-    # Step 2: Extract
+    # Step 2: Extract (with LLM summaries when available)
     extracted = _extract(
         session, embedding_service, config,
         event_bus=event_bus,
+        llm=llm,
     )
 
-    # Step 3: Concept hubs
+    # Step 3: Concept hubs (with LLM summaries when available)
     hubs_created = _build_concept_hubs(
         session, embedding_service, config,
         consolidation_id=log_entry.id,
         event_bus=event_bus,
+        llm=llm,
     )
 
     # Step 4: Link (new memories + all unlinked)
@@ -203,6 +214,7 @@ def _extract(
     config: EmotiveConfig,
     *,
     event_bus: EventBus | None = None,
+    llm: LLMAdapter | None = None,
 ) -> list[Memory]:
     """Find clusters of similar episodic memories and extract semantic patterns."""
     stmt = (
@@ -254,6 +266,7 @@ def _extract(
             semantic = extract_semantic_from_cluster(
                 session, embedding_service, cluster_memories,
                 event_bus=event_bus,
+                llm=llm,
             )
             if semantic:
                 extracted.append(semantic)
@@ -273,6 +286,7 @@ def _build_concept_hubs(
     *,
     consolidation_id: int,
     event_bus: EventBus | None = None,
+    llm: LLMAdapter | None = None,
 ) -> int:
     """Generate concept hub nodes from dense tag clusters.
 
@@ -315,10 +329,18 @@ def _build_concept_hubs(
 
         # Build a summary from the tagged memories
         memories = tag_memories[tag]
-        summary_parts = []
-        for m in memories[:10]:
-            summary_parts.append(m.content[:80])
-        summary = f"Concept: {tag} — " + " | ".join(summary_parts)
+        contents = [m.content for m in memories[:10]]
+
+        summary = None
+        if llm is not None:
+            from .semantic import _llm_summarize_cluster
+            summary = _llm_summarize_cluster(llm, contents, [tag])
+            if summary:
+                summary = f"Concept: {tag} — {summary}"
+
+        if summary is None:
+            summary_parts = [c[:80] for c in contents]
+            summary = f"Concept: {tag} — " + " | ".join(summary_parts)
 
         from .base import store_memory
 

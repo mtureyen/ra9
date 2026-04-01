@@ -152,10 +152,13 @@ def end_session(thalamus: Thalamus) -> dict:
         try:
             consol_session = app.session_factory()
             try:
+                # Pass LLM adapter for smart semantic summaries
+                llm_adapter = thalamus.llm if hasattr(thalamus, 'llm') else None
                 consol_result = run_consolidation(
                     consol_session, app.embedding_service, config,
                     event_bus=app.event_bus,
                     conversation_id=conv_id,
+                    llm=llm_adapter,
                 )
                 result["consolidation"] = consol_result
                 consol_session.commit()
