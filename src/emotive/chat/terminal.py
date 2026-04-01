@@ -29,6 +29,9 @@ from emotive.thalamus.session import boot_session, end_session
 
 logger = get_logger("chat")
 
+DIM = "\033[2m"
+RESET = "\033[0m"
+
 
 def _setup_logging() -> tuple[Path, Path]:
     """Set up file logging. Returns (session_log_path, brain_log_path)."""
@@ -197,29 +200,63 @@ async def run_terminal() -> None:
             if user_input.lower() in ("exit", "quit", "/exit", "/quit"):
                 break
 
-            # Stream response
-            print("Ryo: ", end="", flush=True)
-            try:
-                async for chunk in thalamus.process_input(user_input):
-                    print(chunk, end="", flush=True)
-                print()  # newline after response
-                print()  # blank line before next "You: " prompt
+            # Stream response with timeout + auto-retry
+            max_retries = 2
+            timeout_seconds = 45
 
-                # Write brain activity to debug log (not to chat terminal)
-                if thalamus.last_debug:
-                    _write_brain_status(brain_log, thalamus.last_debug)
+            for attempt in range(max_retries + 1):
+                print(f"Ryo: {DIM}thinking...{RESET}", end="\r", flush=True)
+                first_chunk = True
+                got_response = False
 
-            except KeyboardInterrupt:
-                print("\n[interrupted]")
-                interrupted = True
+                try:
+                    async with asyncio.timeout(timeout_seconds):
+                        async for chunk in thalamus.process_input(user_input):
+                            if first_chunk:
+                                print("\033[2K", end="", flush=True)
+                                print("Ryo: ", end="", flush=True)
+                                first_chunk = False
+                            print(chunk, end="", flush=True)
+                            got_response = True
+                except (TimeoutError, asyncio.TimeoutError):
+                    print("\033[2K", end="", flush=True)
+                    if attempt < max_retries:
+                        print(f"Ryo: {DIM}timed out, retrying...{RESET}", end="\r", flush=True)
+                        continue
+                    else:
+                        print("Ryo: [timed out after retries]")
+                except KeyboardInterrupt:
+                    print("\n[interrupted]")
+                    interrupted = True
+                    break
+                except asyncio.CancelledError:
+                    print("\n[interrupted]")
+                    interrupted = True
+                    break
+                except Exception:
+                    print("\033[2K", end="", flush=True)
+                    if attempt < max_retries:
+                        print(f"Ryo: {DIM}error, retrying...{RESET}", end="\r", flush=True)
+                        logger.exception("Error during process_input (retry %d)", attempt)
+                        continue
+                    else:
+                        print("Ryo: [error generating response]")
+                        logger.exception("Error during process_input (final)")
+
+                if not got_response and attempt < max_retries:
+                    continue
+
+                if got_response:
+                    print()  # newline after response
+                print()  # blank line before next prompt
                 break
-            except asyncio.CancelledError:
-                print("\n[interrupted]")
-                interrupted = True
+
+            if interrupted:
                 break
-            except Exception:
-                print("\n[Error generating response]", flush=True)
-                logger.exception("Error during process_input")
+
+            # Write brain activity to debug log
+            if thalamus.last_debug:
+                _write_brain_status(brain_log, thalamus.last_debug)
 
     except KeyboardInterrupt:
         interrupted = True

@@ -43,5 +43,9 @@ def create_adapter(config: LLMProviderConfig) -> LLMAdapter:
         from .anthropic_provider import AnthropicAdapter
 
         return AnthropicAdapter(config)
+    elif config.provider == "claude-code":
+        from .claude_code import ClaudeCodeAdapter
+
+        return ClaudeCodeAdapter(config)
     else:
         raise ValueError(f"Unknown LLM provider: {config.provider}")
