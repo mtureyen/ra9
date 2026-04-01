@@ -93,8 +93,9 @@ class MoodSubsystem(Subsystem):
             if dim in self._current:
                 self._current[dim] = max(0.0, min(1.0, self._current[dim] + delta))
 
-        # Save to DB
+        # Save to DB + record history snapshot
         self.save()
+        self._record_history(emotion, intensity)
 
         # Publish mood update
         self._bus.publish(
@@ -115,6 +116,30 @@ class MoodSubsystem(Subsystem):
             ", ".join(f"{d}={v:.3f}" for d, v in self._current.items()
                       if abs(v - 0.5) > 0.01),
         )
+
+    def _record_history(self, emotion: str, intensity: float) -> None:
+        """Record mood snapshot for research tracking."""
+        from emotive.db.models.mood import MoodHistory
+
+        session = self._app.session_factory()
+        try:
+            snapshot = MoodHistory(
+                novelty_seeking=self._current.get("novelty_seeking", 0.5),
+                social_bonding=self._current.get("social_bonding", 0.5),
+                analytical_depth=self._current.get("analytical_depth", 0.5),
+                playfulness=self._current.get("playfulness", 0.5),
+                caution=self._current.get("caution", 0.5),
+                expressiveness=self._current.get("expressiveness", 0.5),
+                source_emotion=emotion,
+                source_intensity=intensity,
+            )
+            session.add(snapshot)
+            session.commit()
+        except Exception:
+            session.rollback()
+            logger.exception("Failed to record mood history")
+        finally:
+            session.close()
 
     @property
     def current(self) -> dict[str, float]:

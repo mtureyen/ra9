@@ -143,7 +143,8 @@ class Thalamus:
             formative_threshold=config.episodes.formative_intensity_threshold,
         )
         recalled = self.association_cortex.recall(
-            input_embedding, processed.text, self._conv_id
+            input_embedding, processed.text, self._conv_id,
+            mood=mood_dict,
         )
 
         # 3b. Novelty nudge: if stuck from previous exchange, inject new stimulus

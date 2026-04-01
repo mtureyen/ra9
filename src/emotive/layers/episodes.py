@@ -28,6 +28,11 @@ def create_episode(
     """Create an emotional episode from an appraisal result."""
     v = appraisal.vector
 
+    # Compute mood deltas from emotion + intensity
+    from emotive.subsystems.mood.residue import compute_residue
+
+    mood_deltas = compute_residue(appraisal.primary_emotion, appraisal.intensity)
+
     episode = EmotionalEpisode(
         trigger_event=trigger_event,
         trigger_source=trigger_source,
@@ -43,6 +48,13 @@ def create_episode(
         decay_rate=appraisal.decay_rate,
         half_life_minutes=appraisal.half_life_minutes,
         is_formative=appraisal.is_formative,
+        # Mood dimensional deltas (Phase 2+)
+        delta_novelty_seeking=mood_deltas.get("novelty_seeking", 0),
+        delta_social_bonding=mood_deltas.get("social_bonding", 0),
+        delta_analytical_depth=mood_deltas.get("analytical_depth", 0),
+        delta_playfulness=mood_deltas.get("playfulness", 0),
+        delta_caution=mood_deltas.get("caution", 0),
+        delta_expressiveness=mood_deltas.get("expressiveness", 0),
     )
 
     session.add(episode)
