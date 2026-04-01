@@ -29,7 +29,7 @@ def cosine_similarity(a: list[float], b: list[float]) -> float:
 EMOTION_TO_APPRAISAL: dict[str, dict[str, float]] = {
     "joy":      {"valence": 0.85, "goal_relevance": 0.7, "novelty": 0.4, "agency": 0.6, "social_significance": 0.5},
     "sadness":  {"valence": 0.15, "goal_relevance": 0.7, "novelty": 0.3, "agency": 0.2, "social_significance": 0.5},
-    "anger":    {"valence": 0.15, "goal_relevance": 0.7, "novelty": 0.3, "agency": 0.2, "social_significance": 0.6},
+    "anger":    {"valence": 0.1,  "goal_relevance": 0.8, "novelty": 0.3, "agency": 0.4, "social_significance": 0.7},
     "fear":     {"valence": 0.15, "goal_relevance": 0.6, "novelty": 0.7, "agency": 0.2, "social_significance": 0.3},
     "surprise": {"valence": 0.5,  "goal_relevance": 0.5, "novelty": 0.9, "agency": 0.3, "social_significance": 0.3},
     "awe":      {"valence": 0.8,  "goal_relevance": 0.6, "novelty": 0.8, "agency": 0.3, "social_significance": 0.5},

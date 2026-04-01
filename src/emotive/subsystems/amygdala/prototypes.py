@@ -21,8 +21,8 @@ FAST_PROTOTYPE_TEXTS: dict[str, str] = {
         "something painful happened, missing someone, heartbreak"
     ),
     "anger": (
-        "feeling angry, frustrated, wronged, injustice, betrayal, "
-        "someone did something unfair, violated boundaries"
+        "feeling genuinely angry and furious, deeply wronged by injustice, "
+        "someone deliberately betrayed trust, intentional cruelty, rage"
     ),
     "fear": (
         "feeling scared, anxious, worried, threatened, uncertain, "

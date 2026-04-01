@@ -277,7 +277,10 @@ async def run_terminal() -> None:
 
 def main() -> None:
     """Entry point for emotive-chat command."""
-    asyncio.run(run_terminal())
+    try:
+        asyncio.run(run_terminal())
+    except KeyboardInterrupt:
+        pass  # Already handled inside run_terminal
 
 
 if __name__ == "__main__":
