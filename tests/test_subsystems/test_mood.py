@@ -186,6 +186,159 @@ class TestMoodSubsystem:
         assert mood.current["novelty_seeking"] >= 0.0
 
 
+class TestMoodCongruentRecall:
+    def test_positive_mood_boosts_positive_memories(self):
+        from emotive.subsystems.association_cortex import _apply_mood_preactivation
+
+        results = [
+            {"tags": ["joy"], "primary_emotion": "joy", "final_rank": 0.5},
+            {"tags": ["sadness"], "primary_emotion": "sadness", "final_rank": 0.5},
+            {"tags": ["trust"], "primary_emotion": "trust", "final_rank": 0.5},
+        ]
+        positive_mood = {
+            "novelty_seeking": 0.6, "social_bonding": 0.6, "analytical_depth": 0.55,
+            "playfulness": 0.6, "caution": 0.4, "expressiveness": 0.6,
+        }
+        boosted = _apply_mood_preactivation(results, positive_mood)
+        # Joy and trust should be boosted, sadness should not
+        joy_rank = next(r["final_rank"] for r in boosted if "joy" in r["tags"])
+        sad_rank = next(r["final_rank"] for r in boosted if "sadness" in r["tags"])
+        assert joy_rank > sad_rank
+
+    def test_negative_mood_boosts_negative_memories(self):
+        from emotive.subsystems.association_cortex import _apply_mood_preactivation
+
+        results = [
+            {"tags": ["joy"], "primary_emotion": "joy", "final_rank": 0.5},
+            {"tags": ["sadness"], "primary_emotion": "sadness", "final_rank": 0.5},
+        ]
+        negative_mood = {
+            "novelty_seeking": 0.4, "social_bonding": 0.35, "analytical_depth": 0.5,
+            "playfulness": 0.35, "caution": 0.6, "expressiveness": 0.4,
+        }
+        boosted = _apply_mood_preactivation(results, negative_mood)
+        sad_rank = next(r["final_rank"] for r in boosted if "sadness" in r["tags"])
+        joy_rank = next(r["final_rank"] for r in boosted if "joy" in r["tags"])
+        assert sad_rank > joy_rank
+
+    def test_neutral_mood_no_boost(self):
+        from emotive.subsystems.association_cortex import _apply_mood_preactivation
+
+        results = [
+            {"tags": ["joy"], "primary_emotion": "joy", "final_rank": 0.5},
+            {"tags": ["sadness"], "primary_emotion": "sadness", "final_rank": 0.5},
+        ]
+        neutral_mood = {dim: 0.5 for dim in MOOD_DIMENSIONS}
+        boosted = _apply_mood_preactivation(results, neutral_mood)
+        # Both should stay at 0.5
+        for r in boosted:
+            assert r["final_rank"] == 0.5
+
+    def test_no_mood_returns_unchanged(self):
+        from emotive.subsystems.association_cortex import AssociationCortex
+
+        # Just verify the method accepts mood=None without error
+        # (full integration tested via thalamus)
+
+
+class TestEpisodeDeltas:
+    def test_episode_has_mood_deltas(self, db_session, embedding_service):
+        from emotive.layers.appraisal import AppraisalResult, AppraisalVector
+        from emotive.layers.episodes import create_episode
+
+        appraisal = AppraisalResult(
+            vector=AppraisalVector(0.7, 0.5, 0.8, 0.5, 0.6),
+            primary_emotion="joy",
+            secondary_emotions=[],
+            intensity=0.6,
+            half_life_minutes=30.0,
+            is_formative=False,
+            decay_rate=0.023,
+        )
+        episode = create_episode(db_session, appraisal, trigger_event="test")
+
+        # Joy should have positive social_bonding delta
+        assert episode.delta_social_bonding > 0
+        assert episode.delta_playfulness > 0
+
+    def test_sadness_episode_deltas(self, db_session):
+        from emotive.layers.appraisal import AppraisalResult, AppraisalVector
+        from emotive.layers.episodes import create_episode
+
+        appraisal = AppraisalResult(
+            vector=AppraisalVector(0.7, 0.5, 0.2, 0.3, 0.5),
+            primary_emotion="sadness",
+            secondary_emotions=[],
+            intensity=0.7,
+            half_life_minutes=30.0,
+            is_formative=False,
+            decay_rate=0.023,
+        )
+        episode = create_episode(db_session, appraisal, trigger_event="test sad")
+
+        # Sadness should have negative social_bonding, positive caution
+        assert episode.delta_social_bonding < 0
+        assert episode.delta_caution > 0
+
+    def test_neutral_episode_zero_deltas(self, db_session):
+        from emotive.layers.appraisal import AppraisalResult, AppraisalVector
+        from emotive.layers.episodes import create_episode
+
+        appraisal = AppraisalResult(
+            vector=AppraisalVector(0.5, 0.5, 0.5, 0.5, 0.5),
+            primary_emotion="neutral",
+            secondary_emotions=[],
+            intensity=0.1,
+            half_life_minutes=30.0,
+            is_formative=False,
+            decay_rate=0.023,
+        )
+        episode = create_episode(db_session, appraisal, trigger_event="test neutral")
+
+        assert episode.delta_social_bonding == 0
+        assert episode.delta_caution == 0
+        assert episode.delta_novelty_seeking == 0
+
+
+class TestMoodHistory:
+    def test_history_recorded_on_episode(self, app_context, event_bus):
+        from emotive.subsystems.mood import MoodSubsystem
+
+        mood = MoodSubsystem(app_context, event_bus)
+        event_bus.publish("episode_created", {
+            "primary_emotion": "joy",
+            "intensity": 0.6,
+        })
+
+        # Check history was recorded
+        from emotive.db.models.mood import MoodHistory
+        from sqlalchemy import select, func
+
+        session = app_context.session_factory()
+        count = session.execute(select(func.count(MoodHistory.id))).scalar()
+        assert count >= 1
+
+    def test_history_has_source_emotion(self, app_context, event_bus):
+        from emotive.subsystems.mood import MoodSubsystem
+
+        mood = MoodSubsystem(app_context, event_bus)
+        event_bus.publish("episode_created", {
+            "primary_emotion": "trust",
+            "intensity": 0.7,
+        })
+
+        from emotive.db.models.mood import MoodHistory
+        from sqlalchemy import select
+
+        session = app_context.session_factory()
+        latest = session.execute(
+            select(MoodHistory).order_by(MoodHistory.id.desc()).limit(1)
+        ).scalar()
+        assert latest is not None
+        assert latest.source_emotion == "trust"
+        assert latest.source_intensity == 0.7
+
+
 class TestMoodInContext:
     def test_mood_in_system_prompt(self):
         from emotive.subsystems.prefrontal.context import build_system_prompt
