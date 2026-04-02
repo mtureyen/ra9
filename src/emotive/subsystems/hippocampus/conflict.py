@@ -196,6 +196,50 @@ def _compute_identity_strength(mem: dict) -> float:
     return retrieval * 1.0 + significance * 5.0 + formative_bonus
 
 
+def _extract_person_name(content: str, session: Session) -> str | None:
+    """Extract a known person name from content.
+
+    Scans the content for names that appear in the self-schema's person_context
+    or in person-related memory tags. Returns the first match, or None.
+
+    This is intentionally simple — no NLP, just checks if any known person
+    name appears as a word in the content.
+    """
+    from emotive.subsystems.dmn.schema import _extract_person_context
+
+    # 1. Get known persons from the person_context extractor
+    person_context = _extract_person_context(session)
+    known_names = set(person_context.keys())
+
+    # 2. Also check memory tags that look like person names
+    #    (tags that aren't standard system tags)
+    system_tags = {
+        "identity", "core", "memory", "gist", "conversation_summary",
+        "personal", "relationship", "friend", "creator", "conscious_intent",
+        "procedural", "contradiction", "episodic", "semantic",
+    }
+    stmt = (
+        select(Memory)
+        .where(Memory.is_archived.is_(False))
+        .where(Memory.tags.overlap(["personal", "relationship", "friend", "creator"]))
+        .limit(50)
+    )
+    rows = session.execute(stmt).scalars().all()
+    for mem in rows:
+        for tag in (mem.tags or []):
+            if tag.lower() not in system_tags:
+                known_names.add(tag.lower())
+
+    # 3. Scan content for any known name (case-insensitive word match)
+    content_lower = content.lower()
+    for name in known_names:
+        # Check the name appears as a word boundary match
+        if re.search(r'\b' + re.escape(name) + r'\b', content_lower):
+            return name
+
+    return None
+
+
 def _extract_key_words(text: str) -> list[str]:
     """Extract meaningful words from text, filtering stopwords."""
     # Simple word extraction — no NLP dependency needed

@@ -38,6 +38,10 @@ class MoodSubsystem(Subsystem):
         super().__init__(app, event_bus)
         self._current: dict[str, float] = {dim: 0.5 for dim in MOOD_DIMENSIONS}
         self._enabled = app.config_manager.get().layers.mood
+        self._episode_count: int = 0
+        mood_config = app.config_manager.get().mood
+        self._tick_interval: int = mood_config.homeostasis_tick_interval
+        self._tick_hours: float = mood_config.homeostasis_tick_hours
 
     def _register_handlers(self) -> None:
         """Subscribe to episode creation events."""
@@ -93,6 +97,12 @@ class MoodSubsystem(Subsystem):
             if dim in self._current:
                 self._current[dim] = max(0.0, min(1.0, self._current[dim] + delta))
 
+        # Within-session homeostasis tick: periodically decay toward baseline
+        # so mood doesn't just accumulate residue indefinitely during a session
+        self._episode_count += 1
+        if self._episode_count % self._tick_interval == 0:
+            self._apply_within_session_homeostasis()
+
         # Save to DB + record history snapshot
         self.save()
         self._record_history(emotion, intensity)
@@ -138,6 +148,40 @@ class MoodSubsystem(Subsystem):
         except Exception:
             session.rollback()
             logger.exception("Failed to record mood history")
+        finally:
+            session.close()
+
+    def _apply_within_session_homeostasis(self) -> None:
+        """Run a mini homeostasis pass during a session.
+
+        Simulates the body normalizing during sustained wakefulness:
+        cortisol drops after the threat passes, heart rate slows.
+        Uses temperament baseline from DB if available.
+        """
+        session = self._app.session_factory()
+        try:
+            from emotive.db.models.temperament import Temperament
+
+            temp = session.get(Temperament, 1)
+            temperament = {}
+            if temp:
+                for dim in MOOD_DIMENSIONS:
+                    temperament[dim] = getattr(temp, dim, 0.5)
+            else:
+                temperament = {dim: 0.5 for dim in MOOD_DIMENSIONS}
+
+            self._current = apply_homeostasis(
+                self._current, temperament, self._tick_hours,
+            )
+            logger.info(
+                "Within-session homeostasis tick (episode %d, %.2fh): %s",
+                self._episode_count,
+                self._tick_hours,
+                ", ".join(f"{d}={v:.3f}" for d, v in self._current.items()
+                          if abs(v - 0.5) > 0.01),
+            )
+        except Exception:
+            logger.exception("Within-session homeostasis failed")
         finally:
             session.close()
 

@@ -81,6 +81,14 @@ class MoodConfig(BaseModel):
         default=0.3, ge=0.0, le=1.0,
         description="How much mood modulates amygdala sensitivity",
     )
+    homeostasis_tick_interval: int = Field(
+        default=5, ge=1, le=50,
+        description="Run within-session homeostasis every N episodes",
+    )
+    homeostasis_tick_hours: float = Field(
+        default=0.15, ge=0.01, le=1.0,
+        description="Simulated hours per homeostasis tick (inter-episode gap)",
+    )
 
 
 class EpisodeConfig(BaseModel):
