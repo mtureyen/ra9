@@ -115,6 +115,14 @@ class Thalamus:
                     }
                     for ep in episodes
                 ]
+
+            # 2c. Load procedural memories (auto-activated every exchange, like self-schema)
+            # Must be loaded BEFORE session.close() — uses the same session
+            procedural_memories: list[dict] = []
+            try:
+                procedural_memories = _load_procedural_memories(session)
+            except Exception:
+                logger.exception("Failed to load procedural memories")
         finally:
             session.close()
 
@@ -127,13 +135,6 @@ class Thalamus:
                 sensitivity = self.mood.get_modulated_sensitivity(sensitivity)
             except Exception:
                 logger.exception("Failed to load mood")
-
-        # 2c. Load procedural memories (auto-activated every exchange, like self-schema)
-        procedural_memories: list[dict] = []
-        try:
-            procedural_memories = _load_procedural_memories(session)
-        except Exception:
-            logger.exception("Failed to load procedural memories")
 
         # 3. Fast appraisal + auto-recall (both use shared embedding)
         fast_appraisal = self.amygdala.fast_pass(

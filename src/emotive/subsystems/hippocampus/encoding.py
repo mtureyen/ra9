@@ -154,20 +154,22 @@ class UnconsciousEncoder:
         if not self.should_encode(appraisal.intensity, appraisal):
             return None, None
 
-        # Build tags: emotion + context from co-active memories
-        tags = [appraisal.primary_emotion]
-        if context_tags:
-            for tag in context_tags:
-                if tag not in tags and tag not in self._EXCLUDED_TAGS:
-                    tags.append(tag)
-                if len(tags) >= 6:
-                    break
-
         # ACC analog: check for conflict with established identity memories
         from .conflict import detect_conflict
 
         conflict_score = detect_conflict(session, embedding_service, content[:500])
         conflict_detected = conflict_score > 0.6
+
+        # Build tags: emotion + context from co-active memories
+        # Reserve one slot for "contradiction" tag if conflict detected
+        max_tags = 5 if conflict_detected else 6
+        tags = [appraisal.primary_emotion]
+        if context_tags:
+            for tag in context_tags:
+                if tag not in tags and tag not in self._EXCLUDED_TAGS:
+                    tags.append(tag)
+                if len(tags) >= max_tags:
+                    break
 
         if conflict_detected:
             tags.append("contradiction")

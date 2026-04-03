@@ -16,7 +16,14 @@ if DATABASE_URL is None:
         "Create a .env file in the project root or export it in your shell."
     )
 
-engine = create_engine(DATABASE_URL, echo=False)
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=60,
+    pool_pre_ping=True,
+)
 SessionFactory = sessionmaker(bind=engine)
 
 

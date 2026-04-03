@@ -60,7 +60,7 @@ def close_orphaned_sessions(
 
             cleaned += 1
         except Exception as e:
-            logger.warning(f"Failed to clean orphan session {conv.id}: {e}")
+            logger.warning("Failed to clean orphan session %s: %s", conv.id, e)
             continue
 
     return cleaned

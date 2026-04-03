@@ -96,7 +96,7 @@ def create_db_handler(session_factory: Callable) -> Handler:
     from emotive.db.models.event_log import EventLog
 
     def handler(event_type: str, payload: dict[str, Any]) -> None:
-        refs = payload.pop("_refs", {})
+        refs = payload.get("_refs", {})
         session = session_factory()
         try:
             entry = EventLog(

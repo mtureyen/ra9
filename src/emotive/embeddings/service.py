@@ -34,7 +34,7 @@ class EmbeddingService:
             return
         from sentence_transformers import SentenceTransformer
 
-        logger.info(f"Loading embedding model: {self._model_name}")
+        logger.info("Loading embedding model: %s", self._model_name)
         self._model = SentenceTransformer(self._model_name)
         logger.info("Embedding model loaded")
 

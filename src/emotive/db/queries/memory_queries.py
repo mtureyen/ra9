@@ -43,6 +43,7 @@ def search_by_embedding(
             id, memory_type, content, tags, metadata,
             confidence, reinforcement_count, detail_retention,
             is_formative, retrieval_count, created_at,
+            is_labile, primary_emotion,
             1 - (embedding <=> CAST(:embedding AS vector)) AS similarity
         FROM memories
         WHERE true {where}

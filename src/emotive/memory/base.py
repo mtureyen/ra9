@@ -204,17 +204,19 @@ def recall_memories(
             )
         )
 
-        if event_bus:
-            event_bus.publish(
-                MEMORY_RECALLED,
-                {
-                    "content": r["content"][:200],
-                    "final_rank": r["final_rank"],
-                    "similarity": r["similarity"],
-                },
-                memory_id=mid,
-                conversation_id=conversation_id,
-            )
+    # Publish recall events AFTER the loop to avoid opening DB handler
+    # sessions for each memory while still inside the caller's session scope.
+    # Batch into a single event to reduce connection pressure.
+    if event_bus and results:
+        event_bus.publish(
+            MEMORY_RECALLED,
+            {
+                "count": len(results),
+                "top_content": results[0]["content"][:200] if results else "",
+                "top_similarity": results[0].get("similarity", 0) if results else 0,
+            },
+            conversation_id=conversation_id,
+        )
 
     # --- Brain-closer: retrieval strengthens connections ---
     # Co-recalled memories get linked — co-activation = association
