@@ -43,6 +43,8 @@ class AppraisalResult:
     half_life_minutes: float
     is_formative: bool
     decay_rate: float  # per-minute
+    user_state: str | None = None  # "curious", "testing", "upset", "playful", etc.
+    user_state_confidence: float = 0.0
 
 
 # Emotion scoring patterns: each emotion is scored against the appraisal vector.

@@ -96,6 +96,15 @@ def boot_session(thalamus: Thalamus) -> uuid.UUID:
 
         session.commit()
 
+        # 7. Phase 2.5: inner world boot
+        if config.layers.inner_world:
+            try:
+                thalamus.embodied.load()
+                logger.info("Embodied state loaded")
+            except Exception:
+                logger.exception("Embodied state load failed")
+            thalamus.predictive.reset()
+
         # Set conversation ID on thalamus + reset repetition monitor
         thalamus.conversation_id = conv_id
         thalamus._repetition_monitor.reset()
@@ -179,7 +188,59 @@ def end_session(thalamus: Thalamus) -> dict:
             logger.exception("Post-session DMN regeneration failed")
             result["self_schema_regenerated"] = False
 
-    # 5. Save mood state to DB
+    # 5. Between-session DMN processing
+    if config.layers.inner_world:
+        try:
+            from emotive.subsystems.dmn.spontaneous import find_cross_memory_connection
+            dmn_session = app.session_factory()
+            try:
+                # Load recent memories for cross-memory connection finding
+                from sqlalchemy import select
+                from emotive.db.models.memory import Memory
+                stmt = (
+                    select(Memory)
+                    .where(Memory.is_archived.is_(False))
+                    .order_by(Memory.created_at.desc())
+                    .limit(20)
+                )
+                rows = dmn_session.execute(stmt).scalars().all()
+                recent = [
+                    {
+                        "id": str(m.id),
+                        "content": m.content,
+                        "tags": m.tags or [],
+                        "embedding": list(m.embedding) if m.embedding else None,
+                    }
+                    for m in rows
+                ]
+                pair = find_cross_memory_connection(
+                    recent, app.embedding_service,
+                )
+                if pair:
+                    mem_a, mem_b = pair
+                    connection = (
+                        f"Between-session reflection: connection between "
+                        f"'{mem_a.get('content', '?')[:80]}' and "
+                        f"'{mem_b.get('content', '?')[:80]}'"
+                    )
+                    from emotive.memory.episodic import store_episodic
+                    store_episodic(
+                        dmn_session, app.embedding_service,
+                        content=connection,
+                        conversation_id=conv_id,
+                        tags=["dmn_reflection", "between_session"],
+                    )
+                    dmn_session.commit()
+                    result["dmn_reflection"] = True
+                    logger.info("DMN between-session reflection stored")
+                else:
+                    result["dmn_reflection"] = False
+            finally:
+                dmn_session.close()
+        except Exception:
+            logger.exception("DMN between-session processing failed")
+
+    # 6. Save mood state to DB
     if config.layers.mood:
         try:
             thalamus.mood.save()
@@ -188,14 +249,34 @@ def end_session(thalamus: Thalamus) -> dict:
         except Exception:
             logger.exception("Mood save failed at session end")
 
-    # 6. Publish session ended
+    # 7. Phase 2.5: save embodied state
+    if config.layers.inner_world:
+        try:
+            thalamus.embodied.save()
+            result["embodied_saved"] = True
+            logger.info("Embodied state saved at session end")
+        except Exception:
+            logger.exception("Embodied state save failed at session end")
+
+    # 7. Publish session ended
     app.event_bus.publish(
         SESSION_ENDED,
         result,
         conversation_id=conv_id,
     )
 
-    # 6. Clear PFC buffer + reset repetition monitor
+    # 8. Obsidian auto-export (if enabled)
+    if config.obsidian.auto_export:
+        try:
+            from emotive.cli.export_obsidian import export
+            vault_path = config.obsidian.vault_path
+            export(vault_path)
+            result["obsidian_exported"] = True
+            logger.info("Obsidian auto-export completed")
+        except Exception:
+            logger.exception("Obsidian auto-export failed")
+
+    # 9. Clear PFC buffer + reset repetition monitor
     thalamus.prefrontal.clear()
     thalamus._repetition_monitor.reset()
     thalamus.conversation_id = None

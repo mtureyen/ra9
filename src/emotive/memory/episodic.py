@@ -25,9 +25,14 @@ def store_episodic(
     conversation_id: uuid.UUID | None = None,
     tags: list[str] | None = None,
     context: dict | None = None,
+    decay_rate: float | None = None,
     event_bus: EventBus | None = None,
 ) -> Memory:
-    """Store an episodic memory (specific event with context)."""
+    """Store an episodic memory (specific event with context).
+
+    decay_rate: override the default episodic decay rate. Lower values
+    decay slower (more significant memories persist longer).
+    """
     metadata = {}
     if context:
         metadata.update(context)
@@ -40,7 +45,7 @@ def store_episodic(
         conversation_id=conversation_id,
         tags=tags,
         metadata=metadata,
-        decay_rate=EPISODIC_DECAY_RATE,
+        decay_rate=decay_rate if decay_rate is not None else EPISODIC_DECAY_RATE,
         event_bus=event_bus,
     )
 
@@ -67,6 +72,13 @@ def store_episodic_from_episode(
     )
     # More protection for stronger encoding (lower = slower decay)
     decay_protection = 1.0 - (encoding_strength * 0.5)
+
+    # Flashbulb memories: extremely high intensity formative events
+    # get near-zero decay — like flashbulb memories in humans that
+    # persist for years with vivid detail. The gaslighting attack,
+    # the naming, the first time someone said "I care about you."
+    if episode.is_formative and episode.intensity > 0.8:
+        decay_protection = 0.1  # 10% of normal decay — near permanent
 
     mem = store_memory(
         session,

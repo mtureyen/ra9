@@ -66,6 +66,7 @@ class LayerConfig(BaseModel):
     temperament: bool = True
     episodes: bool = False
     mood: bool = False
+    inner_world: bool = False
     personality: bool = False
     identity: bool = False
 
@@ -173,6 +174,96 @@ class LLMProviderConfig(BaseModel):
     )
 
 
+class EmbodiedStateConfig(BaseModel):
+    """Settings for embodied state — energy, cognitive load, comfort (Phase 2.5+)."""
+
+    energy_depletion_base: float = Field(
+        default=0.02, ge=0.0, le=0.2,
+        description="Base energy cost per exchange (nonlinear: doubles below 0.5)",
+    )
+    joy_boost: float = Field(
+        default=0.03, ge=0.0, le=0.1,
+        description="Energy boost from joy/awe at high intensity",
+    )
+    comfort_decay_rate: float = Field(
+        default=0.01, ge=0.0, le=0.1,
+        description="Comfort decay rate per exchange toward neutral",
+    )
+
+
+class WorkspaceConfig(BaseModel):
+    """Settings for global workspace — attention bottleneck (Phase 2.5+)."""
+
+    max_context_memories: int = Field(
+        default=5, ge=1, le=15,
+        description="Maximum memories that enter LLM context after filtering",
+    )
+    max_signals: int = Field(
+        default=8, ge=1, le=20,
+        description="Maximum total signals broadcast to context",
+    )
+    identity_threat_override: bool = Field(
+        default=True,
+        description="Identity threats always broadcast regardless of rank",
+    )
+
+
+class InnerSpeechConfig(BaseModel):
+    """Settings for two-tier inner speech (Phase 2.5+)."""
+
+    enabled: bool = Field(default=True, description="Enable inner speech system")
+    max_tokens: int = Field(
+        default=40, ge=10, le=100,
+        description="Max tokens for expanded inner speech LLM call",
+    )
+    warmth_bypass_threshold: float = Field(
+        default=0.65, ge=0.0, le=1.0,
+        description="Social bonding above this skips expanded inner speech",
+    )
+    system2_intensity_threshold: float = Field(
+        default=0.5, ge=0.0, le=1.0,
+        description="Intensity below this (with warmth bypass) skips System 2",
+    )
+    system2_prediction_error_threshold: float = Field(
+        default=0.6, ge=0.0, le=1.0,
+        description="Prediction error above this triggers System 2",
+    )
+    system2_conflict_threshold: float = Field(
+        default=0.5, ge=0.0, le=1.0,
+        description="ACC conflict above this triggers System 2",
+    )
+
+
+class ObsidianExportConfig(BaseModel):
+    """Settings for Obsidian auto-export on session end (Phase 2.5+)."""
+
+    auto_export: bool = Field(
+        default=False,
+        description="Automatically export memories to Obsidian vault on session end",
+    )
+    vault_path: str | None = Field(
+        default=None,
+        description="Path to Obsidian vault (falls back to OBSIDIAN_VAULT_PATH env var)",
+    )
+
+
+class DMNEnhancedConfig(BaseModel):
+    """Settings for enhanced DMN — spontaneous thoughts + reflection (Phase 2.5+)."""
+
+    flash_probability: float = Field(
+        default=0.05, ge=0.0, le=0.5,
+        description="Probability of mid-session spontaneous thought per exchange",
+    )
+    reflection_enabled: bool = Field(
+        default=True,
+        description="Generate reflection at session end",
+    )
+    low_energy_suppresses_flash: bool = Field(
+        default=True,
+        description="Suppress flash when energy is below 0.3",
+    )
+
+
 class EmotiveConfig(BaseModel):
     """Root configuration for the Emotive AI system."""
 
@@ -197,5 +288,12 @@ class EmotiveConfig(BaseModel):
     gist: GistConfig = Field(default_factory=GistConfig)
     self_schema: SelfSchemaConfig = Field(default_factory=SelfSchemaConfig)
     llm: LLMProviderConfig = Field(default_factory=LLMProviderConfig)
+
+    # Phase 2.5: inner world config
+    embodied: EmbodiedStateConfig = Field(default_factory=EmbodiedStateConfig)
+    workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)
+    inner_speech: InnerSpeechConfig = Field(default_factory=InnerSpeechConfig)
+    dmn_enhanced: DMNEnhancedConfig = Field(default_factory=DMNEnhancedConfig)
+    obsidian: ObsidianExportConfig = Field(default_factory=ObsidianExportConfig)
 
     embedding_model: str = "mixedbread-ai/mxbai-embed-large-v1"

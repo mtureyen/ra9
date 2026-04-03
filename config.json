@@ -4,6 +4,7 @@
     "temperament": true,
     "episodes": true,
     "mood": true,
+    "inner_world": true,
     "personality": false,
     "identity": false
   },
@@ -53,5 +54,8 @@
     "enabled": true,
     "limit": 10,
     "include_spreading": true
+  },
+  "obsidian": {
+    "auto_export": true
   }
 }

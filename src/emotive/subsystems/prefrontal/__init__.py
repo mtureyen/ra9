@@ -55,6 +55,12 @@ class PrefrontalCortex(Subsystem):
         temperament: dict | None = None,
         mood: dict | None = None,
         procedural_memories: list[dict] | None = None,
+        # Phase 2.5: inner world
+        inner_voice_nudge: str | None = None,
+        inner_speech: str | None = None,
+        embodied_state: dict | None = None,
+        social_perception: str | None = None,
+        metacognitive_markers: str | None = None,
     ) -> tuple[str, list[dict]]:
         """Build enriched context for the LLM.
 
@@ -68,6 +74,11 @@ class PrefrontalCortex(Subsystem):
             temperament=temperament,
             mood=mood,
             procedural_memories=procedural_memories,
+            inner_voice_nudge=inner_voice_nudge,
+            inner_speech=inner_speech,
+            embodied_state=embodied_state,
+            social_perception=social_perception,
+            metacognitive_markers=metacognitive_markers,
         )
         messages = build_messages(self._buffer.get_full_session())
         return system_prompt, messages

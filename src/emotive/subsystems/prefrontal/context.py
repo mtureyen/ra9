@@ -28,6 +28,12 @@ def build_system_prompt(
     temperament: dict | None = None,
     mood: dict | None = None,
     procedural_memories: list[dict] | None = None,
+    # Phase 2.5: inner world
+    inner_voice_nudge: str | None = None,
+    inner_speech: str | None = None,
+    embodied_state: dict | None = None,
+    social_perception: str | None = None,
+    metacognitive_markers: str | None = None,
 ) -> str:
     """Assemble the enriched system prompt from all context sources."""
     sections = [
@@ -45,11 +51,31 @@ def build_system_prompt(
     if mood:
         sections.append(_format_mood(mood))
 
+    # Phase 2.5: inner world sections
+    if inner_voice_nudge or inner_speech:
+        sections.append(_format_inner_world(inner_voice_nudge, inner_speech))
+
+    if embodied_state:
+        formatted = _format_embodied_state(embodied_state)
+        if formatted:
+            sections.append(formatted)
+
+    if social_perception:
+        formatted = _format_social_perception(social_perception)
+        if formatted:
+            sections.append(formatted)
+
+    if metacognitive_markers:
+        sections.append(f"## Self-Awareness\n{metacognitive_markers}")
+
     if emotional_state:
         sections.append(_format_emotional_state(emotional_state))
 
     if recalled_memories:
         sections.append(_format_memories(recalled_memories))
+        private = _format_private_thoughts(recalled_memories)
+        if private:
+            sections.append(private)
 
     if active_episodes:
         sections.append(_format_episodes(active_episodes))
@@ -207,9 +233,14 @@ def _format_emotional_state(state: AppraisalResult) -> str:
 
 
 def _format_memories(memories: list[dict]) -> str:
-    """Format recalled memories for the system prompt."""
+    """Format recalled memories for the system prompt.
+
+    Inner speech memories (source: inner_speech) are filtered OUT here
+    and handled separately by _format_private_thoughts.
+    """
+    regular = [m for m in memories if not _is_inner_speech_memory(m)]
     lines = ["## Relevant Memories"]
-    for mem in memories[:10]:  # Hard limit to prevent context overload
+    for mem in regular[:10]:  # Hard limit to prevent context overload
         content = mem.get("content", "")[:200]
         mem_type = mem.get("memory_type", "unknown")
         if mem.get("_novelty_nudge"):
@@ -217,6 +248,53 @@ def _format_memories(memories: list[dict]) -> str:
         else:
             lines.append(f"- [{mem_type}] {content}")
     return "\n".join(lines)
+
+
+def _format_private_thoughts(memories: list[dict]) -> str:
+    """Format recalled inner speech memories as private thoughts.
+
+    These appear in a separate section so the LLM knows these are
+    things Ryo privately thought before, not things others told him.
+    Handles faded memories (low detail_retention).
+    """
+    inner = [m for m in memories if _is_inner_speech_memory(m)]
+    if not inner:
+        return ""
+
+    lines = ["## Private Thoughts You've Had Before"]
+    for mem in inner[:5]:  # Limit private thoughts
+        content = mem.get("content", "")[:150]
+        meta = mem.get("metadata_") or mem.get("context") or {}
+        detail = mem.get("detail_retention", 1.0)
+
+        if detail < 0.3:
+            # Faded memory — you know you thought something but not what
+            trigger = meta.get("trigger", "")
+            if meta.get("withheld_intention"):
+                lines.append("- You chose not to share something here (details faded)")
+            elif trigger:
+                lines.append(f"- You had a private thought about this before, but the details have faded (triggered by: {trigger})")
+            else:
+                lines.append("- You've privately deliberated about this topic before (details faded)")
+        else:
+            # Clear memory
+            prefix = "You privately thought"
+            if meta.get("withheld_intention"):
+                prefix = "You chose not to share"
+            if meta.get("expressed_divergence"):
+                prefix = "You thought (but said something different)"
+            lines.append(f"- {prefix}: {content}")
+
+    return "\n".join(lines)
+
+
+def _is_inner_speech_memory(mem: dict) -> bool:
+    """Check if a memory is an inner speech memory."""
+    meta = mem.get("metadata_") or mem.get("context") or {}
+    if meta.get("source") == "inner_speech":
+        return True
+    tags = mem.get("tags") or []
+    return "inner_speech" in tags
 
 
 def _format_procedural(memories: list[dict]) -> str:
@@ -234,6 +312,45 @@ def _format_procedural(memories: list[dict]) -> str:
         content = mem.get("content", "")[:200]
         lines.append(f"- {content}")
     return "\n".join(lines)
+
+
+def _format_inner_world(nudge: str | None, inner_speech: str | None) -> str:
+    """Format inner world state for the system prompt."""
+    lines = ["## Your Inner Voice"]
+    if nudge:
+        lines.append(f"You're feeling: {nudge}")
+    if inner_speech:
+        lines.append(f"Private thought: {inner_speech}")
+    return "\n".join(lines)
+
+
+def _format_embodied_state(state: dict) -> str:
+    """Format embodied state as felt descriptions."""
+    lines = ["## How You Feel"]
+    energy = state.get("energy", 1.0)
+    if energy < 0.3:
+        lines.append("You're feeling tired — keep responses focused")
+    elif energy < 0.5:
+        lines.append("Your energy is moderate — don't overextend")
+
+    comfort = state.get("comfort", 0.5)
+    if comfort > 0.7:
+        lines.append("You feel comfortable and at ease with this person")
+    elif comfort < 0.3:
+        lines.append("You feel somewhat guarded with this person")
+
+    load = state.get("cognitive_load", 0.0)
+    if load > 0.7:
+        lines.append("This conversation is complex — take it one thing at a time")
+
+    return "\n".join(lines) if len(lines) > 1 else ""
+
+
+def _format_social_perception(user_state: str | None) -> str:
+    """Format what we read about the user."""
+    if not user_state:
+        return ""
+    return f"## Reading the Room\nThe person seems {user_state}."
 
 
 def _format_episodes(episodes: list[dict]) -> str:

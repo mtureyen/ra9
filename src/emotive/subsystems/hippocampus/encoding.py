@@ -80,6 +80,14 @@ class UnconsciousEncoder:
         # Episode heat decays each exchange (lingering arousal fades)
         self._episode_heat *= 0.7
 
+    def set_prediction_error(self, prediction_error: float) -> None:
+        """Set prediction error from the inner world's predictive processor.
+
+        High prediction error means the input was surprising — surprising
+        content should be easier to encode (lower threshold).
+        """
+        self._prediction_error = prediction_error
+
     def compute_dynamic_threshold(self, appraisal: AppraisalResult) -> float:
         """Compute the effective encoding threshold based on arousal context.
 
@@ -87,6 +95,7 @@ class UnconsciousEncoder:
         - High novelty → threshold drops (unexpected content encodes easier)
         - High social significance → threshold drops (personal content encodes easier)
         - Active episode heat → threshold drops (emotional context lingers)
+        - High prediction error → threshold drops (surprising = worth remembering)
 
         Returns the effective threshold (lower = more encodes).
         """
@@ -96,6 +105,12 @@ class UnconsciousEncoder:
             + self._episode_heat * 0.10
         )
         effective = self._base_threshold - arousal_modifier
+
+        # Prediction error lowers threshold (surprising = worth remembering)
+        prediction_error = getattr(self, "_prediction_error", 0.5)
+        if prediction_error > 0.5:
+            effective -= (prediction_error - 0.5) * 0.15
+
         # Floor at 0.15 — even in maximum arousal, need minimal intensity
         return max(effective, 0.15)
 

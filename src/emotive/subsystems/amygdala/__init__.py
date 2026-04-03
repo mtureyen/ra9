@@ -12,7 +12,11 @@ from typing import TYPE_CHECKING
 
 from emotive.layers.appraisal import AppraisalResult
 from emotive.logging import get_logger
-from emotive.runtime.event_bus import APPRAISAL_COMPLETE, FAST_APPRAISAL_COMPLETE
+from emotive.runtime.event_bus import (
+    APPRAISAL_COMPLETE,
+    FAST_APPRAISAL_COMPLETE,
+    SOCIAL_PERCEPTION_COMPLETE,
+)
 from emotive.subsystems import Subsystem
 
 from .fast_pass import run_fast_pass
@@ -22,6 +26,11 @@ from .prototypes import (
     compute_prototype_embeddings,
 )
 from .slow_pass import run_slow_pass
+from .social_perception import (
+    USER_STATE_PROTOTYPE_TEXTS,
+    compute_social_perception_prototypes,
+    run_social_perception,
+)
 
 if TYPE_CHECKING:
     from emotive.app_context import AppContext
@@ -39,6 +48,7 @@ class Amygdala(Subsystem):
         super().__init__(app, event_bus)
         self._fast_prototypes: dict[str, list[float]] = {}
         self._slow_prototypes: dict[str, list[float]] = {}
+        self._social_prototypes: dict[str, list[float]] = {}
         self._initialized = False
 
     def _ensure_prototypes(self) -> None:
@@ -53,11 +63,15 @@ class Amygdala(Subsystem):
         self._slow_prototypes = compute_prototype_embeddings(
             SLOW_PROTOTYPE_TEXTS, es
         )
+        self._social_prototypes = compute_social_perception_prototypes(
+            USER_STATE_PROTOTYPE_TEXTS, es
+        )
         self._initialized = True
         logger.info(
-            "Prototypes ready: %d fast, %d slow",
+            "Prototypes ready: %d fast, %d slow, %d social",
             len(self._fast_prototypes),
             len(self._slow_prototypes),
+            len(self._social_prototypes),
         )
 
     def fast_pass(
@@ -80,11 +94,26 @@ class Amygdala(Subsystem):
             resilience=resilience,
             formative_threshold=formative_threshold,
         )
+
+        # Social perception: read the user's emotional state
+        user_state, user_state_confidence = run_social_perception(
+            input_embedding, self._social_prototypes
+        )
+        result.user_state = user_state
+        result.user_state_confidence = user_state_confidence
+
         self._bus.publish(
             FAST_APPRAISAL_COMPLETE,
             {
                 "primary_emotion": result.primary_emotion,
                 "intensity": result.intensity,
+            },
+        )
+        self._bus.publish(
+            SOCIAL_PERCEPTION_COMPLETE,
+            {
+                "user_state": user_state,
+                "user_state_confidence": user_state_confidence,
             },
         )
         return result

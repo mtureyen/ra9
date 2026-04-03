@@ -116,6 +116,33 @@ def _write_brain_status(brain_log: Path, debug: dict) -> None:
         if shifted:
             lines.append(f"  mood: {', '.join(shifted)}")
 
+    # Phase 2.5: inner world debug fields
+    if debug.get("inner_voice_nudge"):
+        lines.append(f"  inner voice: {debug['inner_voice_nudge']}")
+
+    if debug.get("inner_speech"):
+        lines.append(f"  inner speech: \"{debug['inner_speech'][:80]}\"")
+    elif debug.get("system2_bypassed"):
+        lines.append(f"  inner speech: bypassed ({debug.get('system2_bypass_reason', 'warmth')})")
+
+    if debug.get("social_perception"):
+        lines.append(f"  social perception: {debug['social_perception']}")
+
+    if debug.get("prediction_error") is not None:
+        lines.append(f"  prediction error: {debug['prediction_error']:.2f}")
+
+    if debug.get("embodied_energy") is not None:
+        lines.append(f"  embodied: energy={debug['embodied_energy']:.2f} comfort={debug.get('embodied_comfort', 0.5):.2f}")
+
+    if debug.get("tone_alignment") is not None:
+        lines.append(f"  tone alignment: {debug['tone_alignment']:.2f}")
+
+    if debug.get("discovery"):
+        lines.append("  discovery: detected")
+
+    if debug.get("dmn_flash"):
+        lines.append("  dmn: spontaneous thought")
+
     # Encoding
     if debug.get("encoded"):
         lines.append(f"  encoded: episode + memory ({emotion}, {intensity:.2f})")

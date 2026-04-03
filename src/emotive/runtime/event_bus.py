@@ -35,6 +35,22 @@ GIST_CREATED = "gist_created"
 SELF_SCHEMA_REGENERATED = "self_schema_regenerated"
 MOOD_UPDATED = "mood_updated"
 
+# Phase 2.5: inner world events
+EMBODIED_STATE_UPDATED = "embodied_state_updated"
+SOCIAL_PERCEPTION_COMPLETE = "social_perception_complete"
+PREDICTION_ERROR_COMPUTED = "prediction_error_computed"
+EXPECTATION_STORED = "expectation_stored"
+WORKSPACE_BROADCAST = "workspace_broadcast"
+METACOGNITION_COMPLETE = "metacognition_complete"
+INNER_VOICE_NUDGE = "inner_voice_nudge"
+INNER_SPEECH_GENERATED = "inner_speech_generated"
+SYSTEM2_GATE_OPENED = "system2_gate_opened"
+SYSTEM2_GATE_BYPASSED = "system2_gate_bypassed"
+SELF_APPRAISAL_COMPLETE = "self_appraisal_complete"
+DISCOVERY_DETECTED = "discovery_detected"
+TONE_MISALIGNMENT = "tone_misalignment"
+DMN_FLASH = "dmn_flash"
+
 Handler = Callable[[str, dict[str, Any]], None]
 
 
