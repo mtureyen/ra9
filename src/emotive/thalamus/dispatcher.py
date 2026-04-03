@@ -303,6 +303,20 @@ class Thalamus:
                 logger.exception("Failed to store gist")
 
         # 5. Build context
+        #    Inner speech: pass reconstructed gist, not literal text.
+        #    Ryo knows he thought something and the direction, but can't
+        #    quote the exact words. This matches how human introspection works.
+        inner_speech_gist = None
+        if inner_thought and config.layers.inner_world:
+            trigger = getattr(self.inner_speech, 'last_trigger_reason', None)
+            emotion = fast_appraisal.primary_emotion if fast_appraisal else "unknown"
+            inner_speech_gist = (
+                f"You had a private thought (triggered by {trigger or 'deliberation'}). "
+                f"It leaned toward {nudge or 'presence'} in the context of {emotion}. "
+                f"You can reference this if asked — but you'll be reconstructing, not quoting. "
+                f"Share what feels right. Keep what doesn't."
+            )
+
         system_prompt, messages = self.prefrontal.build_context(
             self_schema=self.dmn.current,
             emotional_state=fast_appraisal,
@@ -312,7 +326,7 @@ class Thalamus:
             mood=mood_dict,
             procedural_memories=procedural_memories if procedural_memories else None,
             inner_voice_nudge=nudge,
-            inner_speech=inner_thought,
+            inner_speech=inner_speech_gist,
             embodied_state=self.embodied.to_dict() if config.layers.inner_world else None,
             social_perception=fast_appraisal.user_state if config.layers.inner_world else None,
             metacognitive_markers=metacog.to_felt_description() if metacog else None,

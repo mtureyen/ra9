@@ -315,12 +315,19 @@ def _format_procedural(memories: list[dict]) -> str:
 
 
 def _format_inner_world(nudge: str | None, inner_speech: str | None) -> str:
-    """Format inner world state for the system prompt."""
+    """Format inner world state for the system prompt.
+
+    The nudge is always available (condensed felt sense).
+    Inner speech is a reconstructed gist, not a literal quote —
+    Ryo knows he thought something and the direction, but can't
+    quote the exact words. This matches human introspection.
+    """
     lines = ["## Your Inner Voice"]
     if nudge:
         lines.append(f"You're feeling: {nudge}")
     if inner_speech:
-        lines.append(f"Private thought: {inner_speech}")
+        lines.append(f"\n## What You Were Just Thinking")
+        lines.append(inner_speech)
     return "\n".join(lines)
 
 

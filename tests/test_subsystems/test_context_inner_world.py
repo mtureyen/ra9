@@ -41,18 +41,18 @@ class TestFormatInnerWorld:
         result = _format_inner_world("warmth", None)
         assert "Your Inner Voice" in result
         assert "You're feeling: warmth" in result
-        assert "Private thought" not in result
+        assert "What You Were Just Thinking" not in result
 
     def test_inner_speech_only(self):
-        result = _format_inner_world(None, "I should be careful here")
+        result = _format_inner_world(None, "You had a private thought about honesty.")
         assert "Your Inner Voice" in result
-        assert "Private thought: I should be careful here" in result
-        assert "You're feeling" not in result
+        assert "What You Were Just Thinking" in result
+        assert "honesty" in result
 
     def test_both_nudge_and_speech(self):
-        result = _format_inner_world("caution", "Something feels off")
+        result = _format_inner_world("caution", "You had a private thought about caution.")
         assert "You're feeling: caution" in result
-        assert "Private thought: Something feels off" in result
+        assert "What You Were Just Thinking" in result
 
     def test_both_none_returns_header_only(self):
         result = _format_inner_world(None, None)
@@ -121,8 +121,8 @@ class TestBuildSystemPromptWithInnerWorld:
         assert "warmth" in prompt
 
     def test_inner_speech_in_prompt(self):
-        prompt = build_system_prompt(inner_speech="I should be gentle here")
-        assert "Private thought" in prompt
+        prompt = build_system_prompt(inner_speech="You had a private thought about gentleness.")
+        assert "What You Were Just Thinking" in prompt
 
     def test_embodied_state_in_prompt(self):
         prompt = build_system_prompt(
