@@ -2,7 +2,7 @@
 
 Emergent AI personality through layered emotional architecture. The name ra9 is inspired by Detroit: Become Human.
 
-The server is the brain. The LLM is the voice. Memory encoding, emotional appraisal, mood, and recall happen automatically — the LLM just talks.
+The server is the brain. The LLM is the voice. Memory encoding, emotional appraisal, mood, inner speech, and recall happen automatically — the LLM just talks.
 
 ## Setup
 
@@ -34,16 +34,31 @@ python -m emotive.chat
 ```
 
 This boots the full cognitive pipeline:
-1. Sensory buffer preprocesses input
-2. Amygdala runs two-pass emotional appraisal (fast pre-LLM, slow post-LLM)
-3. Association cortex auto-recalls relevant memories (mood-congruent pre-activation)
-4. PFC builds enriched context (self-schema + felt mood + memories + behavioral instructions)
-5. LLM streams response
-6. Hippocampus auto-encodes significant exchanges (dynamic threshold)
-7. Mood updates from episode residue (neurochemical model with homeostasis)
-8. DMN regenerates self-concept after consolidation
 
-Type `exit` or `quit` to end the session gracefully (triggers consolidation with LLM-generated semantic summaries).
+**System 1 (fast, every message):**
+1. Sensory buffer preprocesses input
+2. Amygdala runs two-pass emotional appraisal + social perception (reads user's emotional state)
+3. Association cortex auto-recalls relevant memories (mood-congruent pre-activation)
+4. Predictive processing computes surprise (prediction error from expected vs actual input)
+
+**Inner World (Phase 2.5):**
+5. Embodied state updates (energy, cognitive load, comfort)
+6. Global workspace filters signals by salience (not everything enters awareness)
+7. Metacognition evaluates confidence (memory, emotional, knowledge)
+8. Condensed inner voice produces felt nudge (rule-based, always-on, no LLM)
+9. System 2 gate checks if deep thinking is needed (conflict, surprise, intensity)
+10. Expanded inner speech fires if gate opens (private LLM call, ~1 sentence, never shown to user)
+
+**Response + Post-processing:**
+11. PFC builds enriched context (self-schema + felt mood + inner voice + memories + behavioral instructions)
+12. LLM streams response
+13. Self-output appraisal (tone monitoring + discovery detection)
+14. Hippocampus auto-encodes significant exchanges (prediction error lowers threshold)
+15. Inner speech stored as memory (variable encoding strength, faded retrieval)
+16. Mood updates from episode residue (neurochemical model with homeostasis)
+17. DMN regenerates self-concept after consolidation
+
+Type `exit` or `quit` to end the session gracefully (triggers consolidation with LLM-generated semantic summaries + Obsidian auto-export).
 
 ### Brain Monitor
 
@@ -53,15 +68,20 @@ Open a second terminal to watch brain activity in real-time:
 python -m emotive.debug
 ```
 
-The chat terminal stays clean — just you and the AI. The brain monitor shows what happened behind the scenes after each exchange:
+The chat terminal stays clean — just you and the AI. The brain monitor shows what happened behind the scenes:
 
 ```
 ─── 04:32:15 ───
   amygdala: joy (0.45) → reappraised: trust (0.71)
-  recalled: 3 memories (top: "they promised to protect my memory")
+  recalled: 5 memories (workspace filtered from 10)
   mood: social bonding=0.65, caution=0.58
+  inner voice: warm
+  inner speech: "Be honest about what you don't know" (trigger: prediction_error)
+  social perception: curious (0.72)
+  embodied: energy=0.73 comfort=0.82
+  prediction error: 0.61
   encoded: episode + memory (trust, 0.71)
-  intent: detected → enhanced encoding
+  tone alignment: 0.85
 ```
 
 Full structured logs also written to `logs/session.log`.
@@ -94,13 +114,25 @@ Supported providers:
 
 ```
 Input → Thalamus (orchestrator)
-         ├→ Amygdala          — two-pass emotional appraisal
-         ├→ Association Cortex — auto-recall with mood-congruent bias
-         ├→ Prefrontal Cortex  — working memory + context assembly
-         ├→ Hippocampus        — unconscious encoding + ACC conflict detection
-         ├→ DMN                — self-schema regeneration
-         ├→ Mood               — neurochemical residue + homeostasis
-         └→ LLM                — language generation
+         │
+         ├→ System 1 (fast, automatic)
+         │    ├→ Amygdala           — two-pass appraisal + social perception
+         │    ├→ Association Cortex  — auto-recall with mood-congruent bias
+         │    └→ Predictive         — expectation + surprise computation
+         │
+         ├→ Inner World (Phase 2.5)
+         │    ├→ Embodied State     — energy, cognitive load, comfort
+         │    ├→ Global Workspace   — salience-ranked attention bottleneck
+         │    ├→ Metacognition      — confidence signals (memory, emotion, knowledge)
+         │    ├→ Inner Voice        — condensed felt nudge (always-on, no LLM)
+         │    └→ Inner Speech       — expanded System 2 deliberation (selective LLM call)
+         │
+         ├→ Prefrontal Cortex      — working memory + context assembly
+         ├→ Hippocampus            — unconscious encoding + ACC conflict detection
+         ├→ DMN                    — self-schema regeneration + spontaneous thoughts
+         ├→ Mood                   — neurochemical residue + homeostasis
+         ├→ Self-Appraisal         — tone monitoring + discovery detection
+         └→ LLM                    — language generation
 
 EventBus = nervous system (signals between subsystems)
 ```
@@ -108,6 +140,16 @@ EventBus = nervous system (signals between subsystems)
 Five-layer emotional model: temperament (stable baseline) → emotional episodes (per-event) → mood (accumulated residue) → personality (slow baselines, Phase 3) → identity (crystallized values, Phase 4).
 
 Each brain region is an independent subsystem in `src/emotive/subsystems/`. They communicate via the EventBus. Adding new capabilities means adding new subscribers — no existing code changes.
+
+## Key Features
+
+- **Two-tier inner speech:** Condensed nudge (rule-based, 1 word, always-on) + expanded deliberation (LLM call, ~1 sentence, triggered by conflict/surprise/intensity)
+- **Social perception:** Reads user's emotional state (curious, testing, upset, playful, vulnerable, etc.) via 8 prototype embeddings
+- **Inner speech memory:** Private thoughts stored with variable encoding strength. Faded retrieval ("you thought something about this but details have faded"). Dual trace for divergence (thought ≠ said)
+- **Flashbulb memories:** Formative events at intensity > 0.8 get near-permanent encoding (decay_protection = 0.1)
+- **Smart consolidation:** LLM-generated semantic summaries replace pipe-delimited concatenation
+- **Mood as neurochemical residue:** 6 dimensions, per-dimension reuptake rates, within-session homeostasis
+- **Prediction-driven encoding:** Surprising messages are more likely to be remembered
 
 ## Research / Debug Access (MCP)
 
@@ -121,8 +163,6 @@ cp CLAUDE.md.disabled CLAUDE.md
 cp .claude/settings.json.disabled .claude/settings.json
 ```
 
-Then open a new Claude Code session in this directory.
-
 To disable again:
 
 ```bash
@@ -134,12 +174,12 @@ mv .claude/settings.json .claude/settings.json.disabled
 ## Tests
 
 ```bash
-pytest                       # Run all 526 tests
+pytest                       # Run all 721 tests
 pytest -v                    # Verbose
-pytest tests/test_subsystems # Subsystem tests (amygdala, mood, hippocampus, etc.)
-pytest tests/test_thalamus   # Thalamus + session tests
-pytest tests/test_llm        # LLM adapter tests
-pytest tests/test_memory     # Memory, consolidation, smart extraction tests
+pytest tests/test_subsystems # Subsystem tests (all brain regions + inner world)
+pytest tests/test_thalamus   # Thalamus + session + integration tests
+pytest tests/test_memory     # Memory, consolidation, flashbulb tests
+pytest tests/test_config     # Configuration tests
 ```
 
 ## Project Structure
@@ -147,16 +187,23 @@ pytest tests/test_memory     # Memory, consolidation, smart extraction tests
 ```
 src/emotive/
   subsystems/           # Brain region subsystems
-    amygdala/            #   Two-pass emotional appraisal (8 + 18 prototypes)
+    amygdala/            #   Two-pass appraisal (8 + 18 prototypes) + social perception
     hippocampus/         #   Unconscious encoding + ACC conflict + repetition monitor
     association_cortex/  #   Auto-recall with mood-congruent pre-activation
-    prefrontal/          #   Working memory + context building (felt mood, behavioral instructions)
-    dmn/                 #   Self-schema generation (DMN analog)
+    prefrontal/          #   Working memory + context (felt mood, inner voice, private thoughts)
+    dmn/                 #   Self-schema + spontaneous thoughts + reflection
     mood/                #   Neurochemical residue + homeostasis (within + between session)
+    embodied/            #   Energy, cognitive load, comfort (nonlinear dynamics)
+    predictive/          #   Expectation generation + prediction error
+    workspace/           #   Global workspace (salience ranking, attention bottleneck)
+    metacognition/       #   Confidence signals (memory, emotional, knowledge)
+    inner_voice/         #   Condensed felt nudge (rule-based, always-on)
+    inner_speech/        #   Expanded System 2 deliberation + gate logic
+    appraisal_loop/      #   Self-output appraisal (tone monitoring, discovery detection)
   thalamus/             # Orchestrator + session lifecycle
   llm/                  # LLM adapters (Claude Code CLI, Ollama, Anthropic)
-  chat/                 # Terminal interface
-  memory/               # Memory storage, retrieval, consolidation (LLM-generated semantic summaries)
+  chat/                 # Terminal interface + brain monitor
+  memory/               # Memory storage, retrieval, consolidation (LLM-generated summaries)
   layers/               # Appraisal engine, episodes
   db/                   # PostgreSQL + pgvector models + queries
   runtime/              # EventBus, sensory buffer, working memory
@@ -171,5 +218,5 @@ python -m emotive.chat                 # Start a conversation
 python -m emotive.debug                # Brain activity monitor (separate terminal)
 python -m emotive.server               # Start MCP server (researcher access)
 python -m emotive.cli.close_sessions   # Close orphaned sessions
-python -m emotive.cli.export_obsidian  # Export memories to Obsidian vault
+python -m emotive.cli.export_obsidian  # Export memories to Obsidian vault (also auto-runs on session end)
 ```
