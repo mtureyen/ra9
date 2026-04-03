@@ -225,7 +225,24 @@ async def run_terminal() -> None:
     try:
         while True:
             try:
-                user_input = input("You: ").strip()
+                # Multi-line paste support: after the first line, check if
+                # more lines arrive within 50ms (paste buffer). If so, collect
+                # them all as one message. Single-line typing works normally.
+                import select
+                import sys
+
+                first_line = input("You: ")
+                lines = [first_line]
+
+                # Check if more input is immediately available (paste)
+                while select.select([sys.stdin], [], [], 0.05)[0]:
+                    try:
+                        next_line = sys.stdin.readline().rstrip("\n")
+                        lines.append(next_line)
+                    except EOFError:
+                        break
+
+                user_input = "\n".join(lines).strip()
             except EOFError:
                 break
 

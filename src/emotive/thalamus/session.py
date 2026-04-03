@@ -209,7 +209,7 @@ def end_session(thalamus: Thalamus) -> dict:
                         "id": str(m.id),
                         "content": m.content,
                         "tags": m.tags or [],
-                        "embedding": list(m.embedding) if m.embedding else None,
+                        "embedding": list(m.embedding) if m.embedding is not None else None,
                     }
                     for m in rows
                 ]
