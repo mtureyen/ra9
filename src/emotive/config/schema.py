@@ -178,7 +178,7 @@ class EmbodiedStateConfig(BaseModel):
     """Settings for embodied state — energy, cognitive load, comfort (Phase 2.5+)."""
 
     energy_depletion_base: float = Field(
-        default=0.02, ge=0.0, le=0.2,
+        default=0.008, ge=0.0, le=0.2,
         description="Base energy cost per exchange (nonlinear: doubles below 0.5)",
     )
     joy_boost: float = Field(

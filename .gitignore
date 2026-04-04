@@ -32,6 +32,7 @@ Thumbs.db
 
 # Launcher
 start.sh
+start-app.sh
 
 # Logs
 logs/
@@ -50,3 +51,9 @@ htmlcov/
 
 # ruff
 .ruff_cache/
+
+# Frontend (Tauri + Svelte)
+frontend/node_modules/
+frontend/dist/
+frontend/src-tauri/target/
+frontend/src-tauri/gen/

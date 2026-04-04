@@ -24,7 +24,7 @@ class TestInnerWorldConfig:
 
     def test_embodied_defaults(self):
         cfg = EmbodiedStateConfig()
-        assert cfg.energy_depletion_base == 0.02
+        assert cfg.energy_depletion_base == 0.008
         assert cfg.joy_boost == 0.03
         assert cfg.comfort_decay_rate == 0.01
 
