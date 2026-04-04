@@ -5,6 +5,7 @@
     "episodes": true,
     "mood": true,
     "inner_world": true,
+    "anamnesis": true,
     "personality": false,
     "identity": false
   },

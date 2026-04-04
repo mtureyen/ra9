@@ -48,6 +48,7 @@ class Hippocampus(Subsystem):
         llm_response: str,
         conversation_id: uuid.UUID | None = None,
         context_tags: list[str] | None = None,
+        encoding_mood: dict | None = None,
     ) -> tuple[Memory | None, uuid.UUID | None]:
         """Process a final appraisal result — encode if significant.
 
@@ -80,6 +81,7 @@ class Hippocampus(Subsystem):
                 resilience=resilience,
                 context_tags=context_tags,
                 event_bus=self._bus,
+                encoding_mood=encoding_mood,
             )
             session.commit()
             return memory, episode_id

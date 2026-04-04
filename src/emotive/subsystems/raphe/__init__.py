@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from emotive.app_context import AppContext
     from emotive.runtime.event_bus import EventBus
 
-logger = get_logger("mood")
+logger = get_logger("raphe")
 
 
 class MoodSubsystem(Subsystem):

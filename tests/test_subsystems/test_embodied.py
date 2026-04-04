@@ -2,7 +2,7 @@
 
 import pytest
 
-from emotive.subsystems.embodied.dynamics import (
+from emotive.subsystems.insula.dynamics import (
     boost_energy,
     deplete_energy,
     recover_energy,
@@ -124,7 +124,7 @@ class TestRecovery:
 class TestDefaultState:
     def test_defaults(self):
         """Default state: energy=1.0, load=0.0, comfort=0.5."""
-        from emotive.subsystems.embodied.dynamics import (
+        from emotive.subsystems.insula.dynamics import (
             deplete_energy,
             update_cognitive_load,
             update_comfort,

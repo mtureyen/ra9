@@ -1,12 +1,12 @@
 """Tests for within-session mood homeostasis (Fix E)."""
 
-from emotive.subsystems.mood.residue import MOOD_DIMENSIONS
+from emotive.subsystems.raphe.residue import MOOD_DIMENSIONS
 
 
 class TestWithinSessionHomeostasis:
     def test_homeostasis_tick_fires_at_interval(self, app_context, event_bus):
         """Homeostasis should fire every N episodes (default 5)."""
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
 
@@ -38,7 +38,7 @@ class TestWithinSessionHomeostasis:
 
     def test_homeostasis_prevents_runaway_accumulation(self, app_context, event_bus):
         """35 fear episodes should NOT push caution to 0.79+ with homeostasis."""
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
 
@@ -68,7 +68,7 @@ class TestWithinSessionHomeostasis:
 
     def test_no_tick_before_interval(self, app_context, event_bus):
         """Homeostasis should NOT fire before the interval is reached."""
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
         assert mood._episode_count == 0
@@ -85,7 +85,7 @@ class TestWithinSessionHomeostasis:
 
     def test_tick_interval_configurable(self, app_context, event_bus):
         """Tick interval should come from MoodConfig."""
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
         config = app_context.config_manager.get()
@@ -93,7 +93,7 @@ class TestWithinSessionHomeostasis:
 
     def test_tick_hours_configurable(self, app_context, event_bus):
         """Tick hours should come from MoodConfig."""
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
         config = app_context.config_manager.get()
@@ -101,7 +101,7 @@ class TestWithinSessionHomeostasis:
 
     def test_episode_counter_increments(self, app_context, event_bus):
         """Episode counter should track how many episodes have occurred."""
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
         assert mood._episode_count == 0
@@ -120,7 +120,7 @@ class TestWithinSessionHomeostasis:
 
     def test_neutral_episodes_dont_trigger_residue_but_count(self, app_context, event_bus):
         """Neutral episodes return early (no residue) but should NOT count toward tick."""
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
 

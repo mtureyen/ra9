@@ -20,7 +20,7 @@ from .rules import compute_nudge
 if TYPE_CHECKING:
     from emotive.app_context import AppContext
     from emotive.runtime.event_bus import EventBus
-    from emotive.subsystems.metacognition.markers import MetacognitiveMarkers
+    from emotive.subsystems.prefrontal.metacognition.markers import MetacognitiveMarkers
 
 logger = get_logger("inner_voice")
 

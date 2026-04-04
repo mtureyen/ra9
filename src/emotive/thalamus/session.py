@@ -105,6 +105,44 @@ def boot_session(thalamus: Thalamus) -> uuid.UUID:
                 logger.exception("Embodied state load failed")
             thalamus.predictive.reset()
 
+        # 8. Phase Anamnesis: build person-node cache + reset retrieval state
+        if config.layers.anamnesis:
+            try:
+                cache_session = app.session_factory()
+                try:
+                    thalamus._person_cache.build_from_schema(
+                        thalamus.dmn.current, cache_session,
+                    )
+                    logger.info("Person-node cache built at boot")
+                finally:
+                    cache_session.close()
+            except Exception:
+                logger.exception("Person-node cache build failed")
+            thalamus._retrieval_state.reset()
+            thalamus._pattern_separator.reset()
+
+            # E21: Load prospective memories (dormant intentions)
+            try:
+                pm_session = app.session_factory()
+                try:
+                    from emotive.subsystems.hippocampus.retrieval.prospective import (
+                        load_prospective_memories,
+                    )
+                    thalamus._retrieval_state._prospective_cache = load_prospective_memories(
+                        pm_session,
+                    )
+                    pm_session.commit()
+                    if thalamus._retrieval_state._prospective_cache:
+                        logger.info(
+                            "Loaded %d prospective memories",
+                            len(thalamus._retrieval_state._prospective_cache),
+                        )
+                finally:
+                    pm_session.close()
+            except Exception:
+                logger.exception("Prospective memory load failed")
+                thalamus._retrieval_state._prospective_cache = []
+
         # Set conversation ID on thalamus + reset repetition monitor
         thalamus.conversation_id = conv_id
         thalamus._repetition_monitor.reset()
@@ -240,6 +278,22 @@ def end_session(thalamus: Thalamus) -> dict:
         except Exception:
             logger.exception("DMN between-session processing failed")
 
+    # 5b. Wave 4 — session lifecycle mechanisms (E7, E29, E32, E16)
+    if config.layers.anamnesis:
+        try:
+            wave4_session = app.session_factory()
+            try:
+                wave4_result = _run_wave4_lifecycle(wave4_session, conv_id)
+                result.update(wave4_result)
+                wave4_session.commit()
+            except Exception:
+                wave4_session.rollback()
+                logger.exception("Wave 4 lifecycle mechanisms failed")
+            finally:
+                wave4_session.close()
+        except Exception:
+            logger.exception("Failed to create Wave 4 session")
+
     # 6. Save mood state to DB
     if config.layers.mood:
         try:
@@ -282,4 +336,191 @@ def end_session(thalamus: Thalamus) -> dict:
     thalamus.conversation_id = None
 
     logger.info("Session ended: %s", conv_id)
+    return result
+
+
+def _run_wave4_lifecycle(
+    session,
+    conversation_id: uuid.UUID | None,
+) -> dict:
+    """Wave 4: session lifecycle mechanisms.
+
+    Runs after consolidation. Implements:
+      E7:  Sequential replay — strengthen temporal links
+      E29: Replay interleaving — cross-session theme connections
+      E32: Between-session emotional processing (depotentiation)
+      E16: Active forgetting — release irrelevant memories
+
+    Brain analog: hippocampal replay during sleep/rest,
+    DMN-mediated consolidation, active forgetting via prefrontal inhibition.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import select
+
+    from emotive.db.models.memory import Memory
+    from emotive.db.queries.memory_queries import create_memory_link, strengthen_link
+
+    now = datetime.now(timezone.utc)
+    result = {}
+
+    # --- E7: Session-end sequential replay ---
+    # Get this session's memories in chronological order
+    session_memories = []
+    if conversation_id:
+        stmt = (
+            select(Memory)
+            .where(Memory.conversation_id == conversation_id)
+            .where(Memory.is_archived.is_(False))
+            .order_by(Memory.created_at.asc())
+        )
+        session_memories = list(session.execute(stmt).scalars().all())
+
+    replay_links = 0
+    if len(session_memories) >= 2:
+        # Forward replay: strengthen temporal links between consecutive memories
+        for i in range(len(session_memories) - 1):
+            strengthen_link(
+                session,
+                session_memories[i].id,
+                session_memories[i + 1].id,
+                "temporal_sequence",
+                boost=0.1,
+            )
+            replay_links += 1
+
+        # Reverse replay for last 5 memories (recency prioritized)
+        tail = session_memories[-5:]
+        for i in range(len(tail) - 1, 0, -1):
+            strengthen_link(
+                session,
+                tail[i].id,
+                tail[i - 1].id,
+                "temporal_sequence",
+                boost=0.05,
+            )
+            replay_links += 1
+
+    result["replay_links"] = replay_links
+
+    # --- E29: Replay interleaving ---
+    # Find old memories from different sessions that share tags with today's
+    interleave_links = 0
+    if session_memories:
+        session_tags: set[str] = set()
+        session_ids: set[uuid.UUID] = set()
+        for m in session_memories:
+            session_tags.update(m.tags or [])
+            session_ids.add(m.id)
+
+        # Exclude generic tags
+        _GENERIC_TAGS = {"conversation_summary", "gist", "conscious_intent", "meta_memory",
+                         "retrieval_experience", "dmn_reflection", "between_session"}
+        theme_tags = session_tags - _GENERIC_TAGS
+
+        if theme_tags:
+            from sqlalchemy import func as sa_func
+
+            # Find old memories sharing tags but from different sessions
+            tag_list = list(theme_tags)
+            stmt = (
+                select(Memory)
+                .where(Memory.is_archived.is_(False))
+                .where(Memory.tags.overlap(tag_list))
+                .where(Memory.conversation_id != conversation_id)
+                .order_by(sa_func.random())
+                .limit(5 * min(len(theme_tags), 3))  # sample pool
+            )
+            old_memories = list(session.execute(stmt).scalars().all())
+
+            # Create interleave links between session memories and old ones
+            sample = old_memories[:15] if len(old_memories) > 15 else old_memories
+            for old_mem in sample:
+                # Find the session memory with best tag overlap
+                best_match = max(
+                    session_memories,
+                    key=lambda sm: len(set(sm.tags or []) & set(old_mem.tags or [])),
+                )
+                if old_mem.id != best_match.id:
+                    create_memory_link(
+                        session,
+                        best_match.id,
+                        old_mem.id,
+                        "replay_interleave",
+                        strength=0.08,
+                    )
+                    interleave_links += 1
+
+    result["interleave_links"] = interleave_links
+
+    # --- E32: Between-session emotional processing ---
+    # For recent emotional memories (< 48h), apply emotional depotentiation
+    cutoff_48h = now - timedelta(hours=48)
+    stmt = (
+        select(Memory)
+        .where(Memory.is_archived.is_(False))
+        .where(Memory.created_at > cutoff_48h)
+        .where(Memory.emotional_intensity > 0.2)
+    )
+    recent_emotional = list(session.execute(stmt).scalars().all())
+
+    depotentiated = 0
+    for mem in recent_emotional:
+        # Exempt: formative and flashbulb (high decay_protection)
+        if mem.is_formative:
+            continue
+        if (mem.decay_protection or 1.0) < 0.3:
+            continue  # flashbulb — exempt
+
+        # Recency factor: 1.0 at creation, 0.0 at 48h
+        age_hours = (now - mem.created_at).total_seconds() / 3600
+        recency_factor = max(0.0, 1.0 - age_hours / 48.0)
+
+        ei = mem.emotional_intensity or 0.0
+        new_ei = ei * (1 - 0.05 * recency_factor)
+        new_ei = max(new_ei, 0.2)  # floor
+
+        if new_ei != ei:
+            mem.emotional_intensity = new_ei
+            depotentiated += 1
+
+    result["emotional_depotentiated"] = depotentiated
+
+    # --- E16: Active forgetting ---
+    # Identify release candidates: high retrieval count but declining relevance
+    cutoff_7d = now - timedelta(days=7)
+    stmt = (
+        select(Memory)
+        .where(Memory.is_archived.is_(False))
+        .where(Memory.is_formative.is_(False))
+        .where(Memory.retrieval_count > 10)
+        .where(Memory.emotional_intensity < 0.4)
+    )
+    candidates = list(session.execute(stmt).scalars().all())
+
+    released = 0
+    for mem in candidates:
+        # Must not have been retrieved in the last 7 days
+        if mem.last_retrieved and mem.last_retrieved > cutoff_7d:
+            continue
+
+        # Triple decay rate
+        mem.decay_rate = (mem.decay_rate or 0.0001) * 3.0
+        # Reduce activation to floor
+        mem.current_activation = 0.3  # hard to find but not impossible
+        # Tag as releasing
+        tags = list(mem.tags or [])
+        if "releasing" not in tags:
+            tags.append("releasing")
+            mem.tags = tags
+
+        released += 1
+
+    result["active_forgetting_released"] = released
+
+    session.flush()
+    logger.info(
+        "Wave 4 lifecycle: replay_links=%d, interleave=%d, depotentiated=%d, released=%d",
+        replay_links, interleave_links, depotentiated, released,
+    )
     return result

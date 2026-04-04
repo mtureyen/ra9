@@ -19,6 +19,12 @@
       d.encoded ? "  encoded: yes" : null,
       d.discovery ? "  discovery: detected" : null,
       d.dmn_flash ? "  dmn: spontaneous thought" : null,
+      d.anamnesis ? `  retrieval: ${d.anamnesis.strategy}${d.anamnesis.detected_person ? ` → ${d.anamnesis.detected_person}` : ''}` : null,
+      d.anamnesis ? `  familiarity: ${(d.anamnesis.familiarity || 0).toFixed(2)}  recollection: ${(d.anamnesis.recollection || 0).toFixed(2)}` : null,
+      d.anamnesis ? `  effort: ${(d.anamnesis.effort || 0).toFixed(2)}  iterations: ${d.anamnesis.iterations_used || 0}  candidates: ${d.anamnesis.total_candidates || 0} → ${d.anamnesis.conscious_count || 0}` : null,
+      d.anamnesis?.tot_active ? `  TOT: active (${d.anamnesis.tot_partial_person || '?'}, ${d.anamnesis.tot_partial_emotion || '?'})` : null,
+      d.anamnesis?.narrative ? `  narrative: "${d.anamnesis.narrative}"` : null,
+      d.anamnesis?.priming_words?.length ? `  priming: ${d.anamnesis.priming_words.join(', ')}` : null,
     ].filter(Boolean).join("\n");
     return lines;
   }
@@ -153,6 +159,98 @@
         <div class="note truncate">top: {$lastDebug.recalled_top}</div>
       {/if}
     </div>
+
+    {#if $lastDebug.anamnesis}
+      {@const a = $lastDebug.anamnesis}
+      <div class="section highlight">
+        <div class="row">
+          <span class="label">Strategy</span>
+          <span class="pill strategy">{a.strategy}{a.detected_person ? ` → ${a.detected_person}` : ''}</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="row">
+          <span class="label">Familiarity</span>
+          <div class="bar-container">
+            <div class="bar familiarity" style="width: {(a.familiarity || 0) * 100}%"></div>
+          </div>
+          <span class="value-small">{((a.familiarity || 0) * 100).toFixed(0)}%</span>
+        </div>
+        <div class="row">
+          <span class="label">Recollection</span>
+          <div class="bar-container">
+            <div class="bar recollection" style="width: {(a.recollection || 0) * 100}%"></div>
+          </div>
+          <span class="value-small">{((a.recollection || 0) * 100).toFixed(0)}%</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="row">
+          <span class="label">Effort</span>
+          <div class="bar-container">
+            <div class="bar effort" style="width: {(a.effort || 0) * 100}%"></div>
+          </div>
+          <span class="value-small">{((a.effort || 0) * 100).toFixed(0)}%</span>
+        </div>
+        <div class="note" style="padding-left: 98px">
+          {a.iterations_used || 0} iterations · {a.total_candidates || 0} candidates → {a.conscious_count || 0} conscious
+        </div>
+      </div>
+
+      {#if a.tot_active}
+        <div class="section highlight">
+          <div class="row">
+            <span class="label">Tip of Tongue</span>
+            <span class="indicator warning">active</span>
+          </div>
+          {#if a.tot_partial_person || a.tot_partial_emotion}
+            <div class="note" style="padding-left: 98px">
+              partial: {a.tot_partial_person || '?'}, {a.tot_partial_emotion || '?'}
+            </div>
+          {/if}
+        </div>
+      {/if}
+
+      {#if a.source_confusions && a.source_confusions.length > 0}
+        <div class="section">
+          <div class="row">
+            <span class="label">Source Confusion</span>
+            <span class="indicator warning">{a.source_confusions.length} detected</span>
+          </div>
+        </div>
+      {/if}
+
+      {#if a.narrative}
+        <div class="section highlight">
+          <div class="label">Narrative</div>
+          <div class="speech">{a.narrative}</div>
+        </div>
+      {/if}
+
+      {#if a.priming_words && a.priming_words.length > 0}
+        <div class="section">
+          <div class="label" style="margin-bottom: 4px">Priming</div>
+          <div class="priming-words">
+            {#each a.priming_words as word}
+              <span class="priming-pill">{word}</span>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      {#if a.prospective_triggers && a.prospective_triggers.length > 0}
+        {#each a.prospective_triggers as trigger}
+          <div class="section">
+            <div class="row">
+              <span class="label">Intention</span>
+              <span class="indicator accent">{trigger}</span>
+            </div>
+          </div>
+        {/each}
+      {/if}
+    {/if}
 
     <div class="section indicators">
       {#if $lastDebug.encoded}
@@ -337,5 +435,35 @@
   .empty {
     padding: 40px 12px;
     text-align: center;
+  }
+
+  .pill.strategy {
+    background: var(--trust);
+  }
+
+  .bar.familiarity {
+    background: var(--accent);
+  }
+
+  .bar.recollection {
+    background: var(--joy);
+  }
+
+  .bar.effort {
+    background: linear-gradient(to right, var(--success), var(--warning), var(--danger));
+  }
+
+  .priming-words {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .priming-pill {
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--text-muted);
+    font-size: 10px;
   }
 </style>

@@ -234,6 +234,28 @@ async def api_history():
     return [{"role": t.role, "content": t.content} for t in turns]
 
 
+@app.get("/retrieval-state")
+async def api_retrieval_state():
+    """Current retrieval state (Anamnesis). Persistent across exchanges."""
+    thalamus = state.require_session()
+    rs = thalamus._retrieval_state
+    return {
+        "strategy": rs.strategy,
+        "topic_person": rs.topic_person,
+        "exchange_count_on_topic": rs.exchange_count_on_topic,
+        "encoding_strength": round(rs.encoding_strength, 3),
+        "retrieval_strength": round(rs.retrieval_strength, 3),
+        "last_effort": round(rs.last_effort, 3),
+        "last_familiarity": round(rs.last_familiarity_score, 3),
+        "last_recollection": round(rs.last_recollection_score, 3),
+        "tot_active": rs.tot.active,
+        "rif_active_count": len(rs.get_active_rif()),
+        "previously_recalled_count": len(rs.previously_recalled),
+        "unconscious_pool_size": len(rs.unconscious_pool),
+        "prospective_count": len(getattr(rs, '_prospective_cache', [])),
+    }
+
+
 @app.get("/health")
 async def api_health():
     """Health check."""

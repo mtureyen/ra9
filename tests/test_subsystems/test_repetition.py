@@ -1,6 +1,6 @@
 """Tests for ACC repetition monitor + novelty nudge."""
 
-from emotive.subsystems.hippocampus.repetition import RepetitionMonitor
+from emotive.subsystems.acc.repetition import RepetitionMonitor
 
 
 class TestRepetitionMonitor:

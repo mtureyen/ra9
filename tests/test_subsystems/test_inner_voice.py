@@ -4,7 +4,7 @@ import pytest
 
 from emotive.subsystems.inner_voice.rules import compute_nudge
 from emotive.subsystems.inner_voice import InnerVoice
-from emotive.subsystems.metacognition.markers import MetacognitiveMarkers
+from emotive.subsystems.prefrontal.metacognition.markers import MetacognitiveMarkers
 
 
 def _default_metacog(**kwargs):

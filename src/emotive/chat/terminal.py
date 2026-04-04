@@ -143,6 +143,46 @@ def _write_brain_status(brain_log: Path, debug: dict) -> None:
     if debug.get("dmn_flash"):
         lines.append("  dmn: spontaneous thought")
 
+    # Phase Anamnesis: neural retrieval
+    anamnesis = debug.get("anamnesis")
+    if anamnesis:
+        strategy = anamnesis.get("strategy", "?")
+        person = anamnesis.get("detected_person")
+        strategy_str = f"{strategy}" + (f" → {person}" if person else "")
+        lines.append(f"  retrieval: {strategy_str}")
+
+        fam = anamnesis.get("familiarity", 0)
+        rec = anamnesis.get("recollection", 0)
+        lines.append(f"  familiarity: {fam:.2f}  recollection: {rec:.2f}")
+
+        effort = anamnesis.get("effort", 0)
+        iters = anamnesis.get("iterations_used", 0)
+        cands = anamnesis.get("total_candidates", 0)
+        conscious = anamnesis.get("conscious_count", 0)
+        lines.append(f"  effort: {effort:.2f}  iterations: {iters}  candidates: {cands} → {conscious} conscious")
+
+        if anamnesis.get("tot_active"):
+            partial_p = anamnesis.get("tot_partial_person", "?")
+            partial_e = anamnesis.get("tot_partial_emotion", "?")
+            lines.append(f"  TOT: active (partial: {partial_p}, {partial_e})")
+
+        confusions = anamnesis.get("source_confusions", [])
+        if confusions:
+            lines.append(f"  source confusion: {len(confusions)} detected")
+
+        narrative = anamnesis.get("narrative")
+        if narrative:
+            lines.append(f"  narrative: \"{narrative[:80]}\"")
+
+        priming = anamnesis.get("priming_words", [])
+        if priming:
+            lines.append(f"  priming: {', '.join(priming[:8])}")
+
+        triggers = anamnesis.get("prospective_triggers", [])
+        if triggers:
+            for t in triggers:
+                lines.append(f"  intention: {t}")
+
     # Encoding
     if debug.get("encoded"):
         lines.append(f"  encoded: episode + memory ({emotion}, {intensity:.2f})")

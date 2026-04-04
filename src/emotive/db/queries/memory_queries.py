@@ -44,6 +44,9 @@ def search_by_embedding(
             confidence, reinforcement_count, detail_retention,
             is_formative, retrieval_count, created_at,
             is_labile, primary_emotion,
+            embedding, emotional_intensity,
+            encoding_mood, source_strength, deferred_activation,
+            formation_period, suppression_level, suppression_decay_start,
             1 - (embedding <=> CAST(:embedding AS vector)) AS similarity
         FROM memories
         WHERE true {where}
@@ -52,7 +55,48 @@ def search_by_embedding(
     """)
 
     rows = session.execute(sql, params).mappings().all()
-    return [dict(row) for row in rows]
+    return _postprocess_embedding_results(rows)
+
+
+def _postprocess_embedding_results(rows) -> list[dict]:
+    """Post-process raw SQL results: fix pgvector types + merge Anamnesis columns.
+
+    Fixes two critical issues:
+    1. pgvector may return embedding as string — parse to list
+    2. Anamnesis DB columns (suppression_level, encoding_mood, formation_period)
+       are separate columns but downstream code looks for them in metadata dict
+    """
+    import json
+
+    results = []
+    for row in rows:
+        d = dict(row)
+        # Fix pgvector: raw SQL may return embedding as string "[0.1,0.2,...]"
+        emb = d.get("embedding")
+        if isinstance(emb, str):
+            try:
+                d["embedding"] = json.loads(emb)
+            except (json.JSONDecodeError, TypeError):
+                d["embedding"] = None
+        elif emb is not None and not isinstance(emb, list):
+            d["embedding"] = list(emb)
+
+        # Merge Anamnesis columns into metadata dict so CompletionCandidate
+        # can access them via candidate.metadata.get("column_name").
+        # Without this, E6/E10/E13/E24 silently fail because they look
+        # for these values in metadata where they don't exist.
+        meta = d.get("metadata") or {}
+        if not isinstance(meta, dict):
+            meta = {}
+        for col in (
+            "encoding_mood", "suppression_level", "suppression_decay_start",
+            "formation_period", "source_strength", "deferred_activation",
+        ):
+            if col in d and d[col] is not None:
+                meta[col] = d[col]
+        d["metadata"] = meta
+        results.append(d)
+    return results
 
 
 def get_linked_memories(

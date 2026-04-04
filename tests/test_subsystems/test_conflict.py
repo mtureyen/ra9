@@ -1,7 +1,7 @@
 """Tests for ACC conflict detection (identity protection)."""
 
 from emotive.memory.base import store_memory
-from emotive.subsystems.hippocampus.conflict import (
+from emotive.subsystems.acc.conflict import (
     _compute_identity_strength,
     _extract_key_words,
     detect_conflict,

@@ -30,9 +30,7 @@ CLAUDE.md.disabled
 .DS_Store
 Thumbs.db
 
-# Launcher
-start.sh
-start-app.sh
+# Launcher (both tracked — useful for setup)
 
 # Logs
 logs/

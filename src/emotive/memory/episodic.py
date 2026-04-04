@@ -27,11 +27,14 @@ def store_episodic(
     context: dict | None = None,
     decay_rate: float | None = None,
     event_bus: EventBus | None = None,
+    encoding_mood: dict | None = None,
+    source_type: str | None = None,
 ) -> Memory:
     """Store an episodic memory (specific event with context).
 
     decay_rate: override the default episodic decay rate. Lower values
     decay slower (more significant memories persist longer).
+    source_type: "imagined" for inner speech, "experienced" for real events (E26).
     """
     metadata = {}
     if context:
@@ -47,6 +50,8 @@ def store_episodic(
         metadata=metadata,
         decay_rate=decay_rate if decay_rate is not None else EPISODIC_DECAY_RATE,
         event_bus=event_bus,
+        encoding_mood=encoding_mood,
+        source_type=source_type,
     )
 
 
@@ -60,6 +65,7 @@ def store_episodic_from_episode(
     tags: list[str] | None = None,
     encoding_strength_weight: float = 0.8,
     event_bus: EventBus | None = None,
+    encoding_mood: dict | None = None,
 ) -> Memory:
     """Store an episodic memory from an emotional episode.
 
@@ -94,6 +100,7 @@ def store_episodic_from_episode(
         source_episode_id=episode.id,
         decay_protection=decay_protection,
         event_bus=event_bus,
+        encoding_mood=encoding_mood,
     )
 
     # Mark episode as encoded

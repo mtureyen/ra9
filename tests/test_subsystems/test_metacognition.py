@@ -2,8 +2,8 @@
 
 import pytest
 
-from emotive.subsystems.metacognition.markers import MetacognitiveMarkers
-from emotive.subsystems.metacognition import (
+from emotive.subsystems.prefrontal.metacognition.markers import MetacognitiveMarkers
+from emotive.subsystems.prefrontal.metacognition import (
     Metacognition,
     _compute_memory_confidence,
     _compute_emotional_clarity,

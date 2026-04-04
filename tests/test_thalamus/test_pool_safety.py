@@ -19,7 +19,7 @@ class TestMoodSingleSession:
         not three (one for save, one for history, one for homeostasis).
         This was the primary cause of QueuePool exhaustion.
         """
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
 

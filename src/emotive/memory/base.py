@@ -21,6 +21,9 @@ from emotive.db.queries.memory_queries import (
 from emotive.embeddings.service import EmbeddingService
 from emotive.runtime.event_bus import MEMORY_RECALLED, MEMORY_STORED, EventBus
 
+# E6: Cache for formation period count (avoids SELECT COUNT on every store)
+_formation_period_cache: int | None = None
+
 
 def store_memory(
     session: Session,
@@ -39,6 +42,9 @@ def store_memory(
     source_episode_id: uuid.UUID | None = None,
     decay_protection: float | None = None,
     event_bus: EventBus | None = None,
+    # Phase Anamnesis fields
+    encoding_mood: dict | None = None,
+    source_type: str | None = None,
 ) -> Memory:
     """Store a memory with auto-generated embedding.
 
@@ -72,6 +78,30 @@ def store_memory(
     if decay_protection is not None:
         mem.decay_protection = decay_protection
 
+    # Phase Anamnesis: encoding-time fields
+    # E10: Mood-dependent gating — snapshot mood at encoding
+    if encoding_mood:
+        mem.encoding_mood = encoding_mood
+    # E9: Store original embedding for drift tracking
+    mem.original_embedding = embedding
+    # E26: Imagination inflation guard — permanent source type
+    if source_type:
+        if mem.metadata_ is None:
+            mem.metadata_ = {}
+        mem.metadata_["source_type"] = source_type
+    # E6: Formation period — first 150 memories get flagged
+    # Use cached count to avoid SELECT COUNT(*) on every store
+    global _formation_period_cache
+    if _formation_period_cache is None or _formation_period_cache < 150:
+        from sqlalchemy import func, select
+        total = session.execute(
+            select(func.count()).select_from(Memory).where(Memory.is_archived.is_(False))
+        ).scalar() or 0
+        _formation_period_cache = total
+    if _formation_period_cache < 150:
+        mem.formation_period = True
+        _formation_period_cache += 1  # approximate, avoids recount
+
     session.add(mem)
     session.flush()
 
@@ -91,6 +121,17 @@ def store_memory(
         )
         if result is not None:
             instant_links += 1
+
+    # --- E12: Retroactive interference protection ---
+    # When a new memory is very similar to existing ones from different
+    # people/contexts, boost the existing memory's distinctiveness.
+    try:
+        from emotive.subsystems.hippocampus.retrieval.interference import (
+            protect_against_retroactive,
+        )
+        protect_against_retroactive(session, embedding, mem.id)
+    except Exception:
+        pass  # Non-critical — don't crash encoding
 
     # --- Brain-closer: temporal co-occurrence linking ---
     temporal_links = 0

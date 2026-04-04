@@ -2,12 +2,12 @@
 
 import pytest
 
-from emotive.subsystems.appraisal_loop.tone_monitor import (
+from emotive.subsystems.acc.tone_monitor import (
     NUDGE_KEYWORDS,
     check_tone_alignment,
 )
-from emotive.subsystems.appraisal_loop.discovery import detect_discovery
-from emotive.subsystems.appraisal_loop import SelfAppraisal
+from emotive.subsystems.dmn.discovery import detect_discovery
+from emotive.subsystems.acc.self_appraisal import SelfAppraisal
 
 
 # ---------------------------------------------------------------------------

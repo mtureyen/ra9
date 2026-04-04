@@ -3,11 +3,11 @@
 import pytest
 from unittest.mock import AsyncMock
 
-from emotive.subsystems.inner_speech.gate import should_engage_system2
-from emotive.subsystems.inner_speech.prompt import build_inner_speech_prompt
-from emotive.subsystems.inner_speech import InnerSpeech
+from emotive.subsystems.broca.gate import should_engage_system2
+from emotive.subsystems.broca.prompt import build_inner_speech_prompt
+from emotive.subsystems.broca import InnerSpeech
 from emotive.config.schema import InnerSpeechConfig
-from emotive.subsystems.metacognition.markers import MetacognitiveMarkers
+from emotive.subsystems.prefrontal.metacognition.markers import MetacognitiveMarkers
 from emotive.subsystems.workspace.signals import WorkspaceOutput
 
 

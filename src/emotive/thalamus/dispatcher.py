@@ -22,15 +22,15 @@ from emotive.logging import get_logger
 from emotive.runtime.event_bus import INPUT_RECEIVED, RESPONSE_GENERATED
 from emotive.runtime.sensory_buffer import SensoryBuffer
 from emotive.subsystems.amygdala import Amygdala
-from emotive.subsystems.appraisal_loop import SelfAppraisal
+from emotive.subsystems.acc.self_appraisal import SelfAppraisal
 from emotive.subsystems.association_cortex import AssociationCortex
 from emotive.subsystems.dmn import DefaultModeNetwork
-from emotive.subsystems.embodied import EmbodiedSubsystem
+from emotive.subsystems.insula import EmbodiedSubsystem
 from emotive.subsystems.hippocampus import Hippocampus
-from emotive.subsystems.inner_speech import InnerSpeech
+from emotive.subsystems.broca import InnerSpeech
 from emotive.subsystems.inner_voice import InnerVoice
-from emotive.subsystems.metacognition import Metacognition
-from emotive.subsystems.mood import MoodSubsystem
+from emotive.subsystems.prefrontal.metacognition import Metacognition
+from emotive.subsystems.raphe import MoodSubsystem
 from emotive.subsystems.predictive import PredictiveProcessor
 from emotive.subsystems.prefrontal import PrefrontalCortex
 from emotive.subsystems.prefrontal.buffer import compress_to_gist
@@ -75,10 +75,19 @@ class Thalamus:
         self.last_debug: dict | None = None
         self._last_tone_alignment: float = 1.0
         self._prediction_error: float = 0.5
+        self._person_trust_score: float = 0.5
 
         # ACC repetition monitor (locus coeruleus novelty nudge)
-        from emotive.subsystems.hippocampus.repetition import RepetitionMonitor
+        from emotive.subsystems.acc.repetition import RepetitionMonitor
         self._repetition_monitor = RepetitionMonitor()
+
+        # Phase Anamnesis: neural retrieval state
+        from emotive.subsystems.entorhinal.separation import PatternSeparator
+        from emotive.subsystems.hippocampus.retrieval.concept_cells import PersonNodeCache
+        from emotive.subsystems.hippocampus.retrieval.state import RetrievalState
+        self._retrieval_state = RetrievalState()
+        self._person_cache = PersonNodeCache()
+        self._pattern_separator = PatternSeparator()
 
     @property
     def conversation_id(self) -> uuid.UUID | None:
@@ -149,6 +158,7 @@ class Thalamus:
         if config.layers.mood:
             try:
                 mood_dict = self.mood.load()
+                self._pre_exchange_mood = dict(mood_dict) if mood_dict else None
                 # Mood modulates amygdala sensitivity
                 sensitivity = self.mood.get_modulated_sensitivity(sensitivity)
             except Exception:
@@ -161,10 +171,27 @@ class Thalamus:
             resilience=resilience,
             formative_threshold=config.episodes.formative_intensity_threshold,
         )
-        recalled = self.association_cortex.recall(
-            input_embedding, processed.text, self._conv_id,
-            mood=mood_dict,
-        )
+
+        # Auto-recall: Anamnesis (neural) or legacy (cosine) path
+        anamnesis_result = None
+        if config.layers.anamnesis:
+            anamnesis_result = self.association_cortex.recall_anamnesis(
+                input_embedding, processed.text,
+                self._retrieval_state, self._person_cache,
+                self._pattern_separator,
+                conversation_id=self._conv_id,
+                mood=mood_dict,
+                prediction_error=self._prediction_error,
+                emotional_intensity=fast_appraisal.intensity,
+                person_trust=getattr(self, '_person_trust_score', 0.5),
+                comfort=self.embodied.comfort if hasattr(self, 'embodied') else 0.5,
+            )
+            recalled = anamnesis_result.conscious
+        else:
+            recalled = self.association_cortex.recall(
+                input_embedding, processed.text, self._conv_id,
+                mood=mood_dict,
+            )
 
         # 3b. Novelty nudge: if stuck from previous exchange, inject new stimulus
         if self._repetition_monitor.is_stuck:
@@ -202,7 +229,7 @@ class Thalamus:
                 # 2b. Quick conflict check for workspace
                 acc_conflict = 0.0
                 try:
-                    from emotive.subsystems.hippocampus.conflict import detect_conflict
+                    from emotive.subsystems.acc.conflict import detect_conflict
                     conflict_session = self._app.session_factory()
                     try:
                         acc_conflict = detect_conflict(
@@ -247,6 +274,10 @@ class Thalamus:
                         iw_session.close()
                 except Exception:
                     pass
+
+                # Map trust level to numeric score for E23 emotional blunting
+                _trust_map = {"unknown": 0.2, "familiar": 0.5, "trusted": 0.7, "core": 0.9}
+                self._person_trust_score = _trust_map.get(trust_level, 0.5)
 
                 nudge = self.inner_voice.nudge(
                     mood=mood_dict or {},
@@ -317,6 +348,28 @@ class Thalamus:
                 f"Share what feels right. Keep what doesn't."
             )
 
+        # Phase Anamnesis: wire retrieval signals into context
+        anamnesis_context_extras = {}
+        if anamnesis_result is not None and config.layers.anamnesis:
+            # E5: Priming words as background associations
+            if anamnesis_result.priming_words:
+                anamnesis_context_extras["priming"] = anamnesis_result.priming_words
+
+            # E18: Narrative arc
+            if anamnesis_result.narrative:
+                anamnesis_context_extras["narrative"] = anamnesis_result.narrative
+
+            # E21: Prospective memory triggers → inject into inner voice
+            if anamnesis_result.prospective_triggers:
+                prospective_nudge = " | ".join(anamnesis_result.prospective_triggers)
+                nudge = f"{nudge} | {prospective_nudge}" if nudge else prospective_nudge
+
+            # E15: Effort → embodied cognitive load
+            if anamnesis_result.effort > 0.3:
+                self.embodied._cognitive_load = min(
+                    1.0, self.embodied._cognitive_load + anamnesis_result.effort * 0.15,
+                )
+
         system_prompt, messages = self.prefrontal.build_context(
             self_schema=self.dmn.current,
             emotional_state=fast_appraisal,
@@ -330,6 +383,7 @@ class Thalamus:
             embodied_state=self.embodied.to_dict() if config.layers.inner_world else None,
             social_perception=fast_appraisal.user_state if config.layers.inner_world else None,
             metacognitive_markers=metacog.to_felt_description() if metacog else None,
+            **anamnesis_context_extras,
         )
 
         # 6. Stream LLM response
@@ -375,6 +429,28 @@ class Thalamus:
             debug["embodied_comfort"] = self.embodied.comfort
             if inner_thought is None and nudge is not None:
                 debug["system2_bypassed"] = True
+
+        # Phase Anamnesis: retrieval metadata
+        if anamnesis_result is not None:
+            debug["anamnesis"] = {
+                "strategy": anamnesis_result.strategy,
+                "detected_person": anamnesis_result.detected_person,
+                "is_recall_query": anamnesis_result.is_recall_query,
+                "familiarity": round(anamnesis_result.familiarity_score, 3),
+                "recollection": round(anamnesis_result.recollection_score, 3),
+                "tot_active": anamnesis_result.tot_active,
+                "tot_partial_person": anamnesis_result.tot_partial_person,
+                "tot_partial_emotion": anamnesis_result.tot_partial_emotion,
+                "effort": round(anamnesis_result.effort, 3),
+                "total_candidates": anamnesis_result.total_candidates,
+                "conscious_count": len(anamnesis_result.conscious),
+                "unconscious_pool_size": len(anamnesis_result.unconscious_pool),
+                "source_confusions": anamnesis_result.source_confusions,
+                "iterations_used": anamnesis_result.iterations_used,
+                "priming_words": sorted(anamnesis_result.priming_words)[:10] if anamnesis_result.priming_words else [],
+                "narrative": anamnesis_result.narrative,
+                "prospective_triggers": anamnesis_result.prospective_triggers,
+            }
 
         self.last_debug = debug
 
@@ -446,6 +522,7 @@ class Thalamus:
             memory, episode_id = self.hippocampus.process_appraisal(
                 final, user_msg, llm_response, self._conv_id,
                 context_tags=context_tags if context_tags else None,
+                encoding_mood=self.mood.current if config.layers.mood else None,
             )
             if memory is not None:
                 debug["encoded"] = True
@@ -579,6 +656,7 @@ class Thalamus:
                             content=inner_thought,
                             conversation_id=self._conv_id,
                             tags=is_tags,
+                            source_type="imagined",  # E26: permanent, survives all decay
                             context={
                                 "source": "inner_speech",
                                 "elaboration": "expanded",
@@ -623,6 +701,38 @@ class Thalamus:
                     debug["dmn_flash"] = True
             except Exception:
                 logger.exception("DMN flash check failed")
+
+        # E31: Apply reward signal to retrieved memories (basal ganglia gating)
+        if config.layers.anamnesis and self._last_recalled:
+            try:
+                from emotive.subsystems.basal_ganglia import (
+                    apply_reward_to_memories,
+                    compute_reward_signal,
+                )
+                pre_mood = getattr(self, '_pre_exchange_mood', None)
+                post_mood = self.mood.current if config.layers.mood else None
+                # Compute trust/bonding changes from mood deltas
+                trust_change = 0.0
+                bonding_change = 0.0
+                if pre_mood and post_mood:
+                    trust_change = post_mood.get("social_bonding", 0.5) - pre_mood.get("social_bonding", 0.5)
+                    bonding_change = trust_change  # social_bonding IS the bonding signal
+
+                reward = compute_reward_signal(
+                    pre_mood, post_mood,
+                    trust_change=trust_change,
+                    bonding_change=bonding_change,
+                )
+                if abs(reward) > 0.01:
+                    reward_session = self._app.session_factory()
+                    try:
+                        memory_ids = [m.get("id") for m in self._last_recalled if m.get("id")]
+                        apply_reward_to_memories(reward_session, memory_ids, reward)
+                        reward_session.commit()
+                    finally:
+                        reward_session.close()
+            except Exception:
+                logger.exception("Reward gating update failed")
 
         return debug
 

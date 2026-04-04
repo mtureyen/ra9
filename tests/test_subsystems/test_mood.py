@@ -1,7 +1,7 @@
 """Tests for the Mood subsystem (Phase 2)."""
 
-from emotive.subsystems.mood.residue import EMOTION_TO_RESIDUE, MOOD_DIMENSIONS, compute_residue
-from emotive.subsystems.mood.homeostasis import REUPTAKE_RATES, apply_homeostasis
+from emotive.subsystems.raphe.residue import EMOTION_TO_RESIDUE, MOOD_DIMENSIONS, compute_residue
+from emotive.subsystems.raphe.homeostasis import REUPTAKE_RATES, apply_homeostasis
 
 
 class TestResidue:
@@ -97,14 +97,14 @@ class TestHomeostasis:
 
 class TestMoodSubsystem:
     def test_initialization(self, app_context, event_bus):
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
         assert mood.name == "mood"
         assert isinstance(mood.current, dict)
 
     def test_subscribes_to_episode_created(self, app_context, event_bus):
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
         # Simulate episode creation
@@ -117,7 +117,7 @@ class TestMoodSubsystem:
         assert mood.current["social_bonding"] > 0.5  # joy increases social bonding
 
     def test_neutral_episode_no_shift(self, app_context, event_bus):
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
         before = dict(mood.current)
@@ -128,7 +128,7 @@ class TestMoodSubsystem:
         assert mood.current == before
 
     def test_modulated_sensitivity_low_mood(self, app_context, event_bus):
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
         # Push mood low with sad episodes
@@ -142,7 +142,7 @@ class TestMoodSubsystem:
         assert modulated > 0.5
 
     def test_modulated_sensitivity_high_mood(self, app_context, event_bus):
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
         # Push mood high with joy episodes
@@ -156,7 +156,7 @@ class TestMoodSubsystem:
         assert modulated < 0.5
 
     def test_publishes_mood_updated(self, app_context, event_bus):
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         events = []
         event_bus.subscribe("mood_updated", lambda t, d: events.append(d))
@@ -172,7 +172,7 @@ class TestMoodSubsystem:
         assert "source_emotion" in events[0]
 
     def test_mood_clamped_0_to_1(self, app_context, event_bus):
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
         # Push same dimension many times
@@ -302,7 +302,7 @@ class TestEpisodeDeltas:
 
 class TestMoodHistory:
     def test_history_recorded_on_episode(self, app_context, event_bus):
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
         event_bus.publish("episode_created", {
@@ -319,7 +319,7 @@ class TestMoodHistory:
         assert count >= 1
 
     def test_history_has_source_emotion(self, app_context, event_bus):
-        from emotive.subsystems.mood import MoodSubsystem
+        from emotive.subsystems.raphe import MoodSubsystem
 
         mood = MoodSubsystem(app_context, event_bus)
         event_bus.publish("episode_created", {

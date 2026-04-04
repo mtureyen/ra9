@@ -34,6 +34,9 @@ def build_system_prompt(
     embodied_state: dict | None = None,
     social_perception: str | None = None,
     metacognitive_markers: str | None = None,
+    # Phase Anamnesis: retrieval-enriched context
+    priming: set | None = None,
+    narrative: str | None = None,
 ) -> str:
     """Assemble the enriched system prompt from all context sources."""
     sections = [
@@ -91,6 +94,18 @@ def build_system_prompt(
         '("I want to remember this") — the system will detect it.\n'
         "- You don't need to call any tools. Just talk."
     )
+
+    # Phase Anamnesis: retrieval-enriched sections
+    if narrative:
+        sections.append(f"## Your Story\n{narrative}")
+
+    if priming:
+        words = ", ".join(sorted(priming)[:15])
+        sections.append(
+            f"## Background Associations\n"
+            f"Words and concepts in the back of your mind: {words}\n"
+            f"(These are not explicit memories — they subtly influence your thinking.)"
+        )
 
     return "\n\n".join(sections)
 

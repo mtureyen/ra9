@@ -1,5 +1,25 @@
 const API_BASE = "http://127.0.0.1:8000";
 
+export interface AnamnesisDebug {
+  strategy: string;
+  detected_person: string | null;
+  is_recall_query: boolean;
+  familiarity: number;
+  recollection: number;
+  tot_active: boolean;
+  tot_partial_person: string | null;
+  tot_partial_emotion: string | null;
+  effort: number;
+  total_candidates: number;
+  conscious_count: number;
+  unconscious_pool_size: number;
+  source_confusions: Array<Record<string, unknown>>;
+  iterations_used: number;
+  priming_words: string[];
+  narrative: string | null;
+  prospective_triggers: string[];
+}
+
 export interface DebugDict {
   fast_emotion?: string;
   fast_intensity?: number;
@@ -20,6 +40,7 @@ export interface DebugDict {
   recalled_top?: string;
   encoded?: boolean;
   mood?: Record<string, number>;
+  anamnesis?: AnamnesisDebug;
   [key: string]: unknown;
 }
 

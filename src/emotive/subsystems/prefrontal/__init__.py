@@ -61,6 +61,10 @@ class PrefrontalCortex(Subsystem):
         embodied_state: dict | None = None,
         social_perception: str | None = None,
         metacognitive_markers: str | None = None,
+        # Phase Anamnesis: retrieval-enriched context
+        priming: set | None = None,
+        narrative: str | None = None,
+        **kwargs,
     ) -> tuple[str, list[dict]]:
         """Build enriched context for the LLM.
 
@@ -79,6 +83,8 @@ class PrefrontalCortex(Subsystem):
             embodied_state=embodied_state,
             social_perception=social_perception,
             metacognitive_markers=metacognitive_markers,
+            priming=priming,
+            narrative=narrative,
         )
         messages = build_messages(self._buffer.get_full_session())
         return system_prompt, messages

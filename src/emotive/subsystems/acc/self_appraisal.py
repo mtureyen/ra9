@@ -19,14 +19,14 @@ from emotive.runtime.event_bus import (
 )
 from emotive.subsystems import Subsystem
 
-from .discovery import detect_discovery
 from .tone_monitor import check_tone_alignment
+from emotive.subsystems.dmn.discovery import detect_discovery
 
 if TYPE_CHECKING:
     from emotive.app_context import AppContext
     from emotive.runtime.event_bus import EventBus
 
-logger = get_logger("self_appraisal")
+logger = get_logger("acc.self_appraisal")
 
 
 class SelfAppraisal(Subsystem):

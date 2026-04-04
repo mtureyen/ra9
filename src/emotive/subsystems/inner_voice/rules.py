@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from emotive.subsystems.metacognition.markers import MetacognitiveMarkers
+    from emotive.subsystems.prefrontal.metacognition.markers import MetacognitiveMarkers
 
 
 def compute_nudge(

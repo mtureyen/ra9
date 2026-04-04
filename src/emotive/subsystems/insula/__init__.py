@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from emotive.app_context import AppContext
     from emotive.runtime.event_bus import EventBus
 
-logger = get_logger("embodied")
+logger = get_logger("insula")
 
 
 class EmbodiedSubsystem(Subsystem):

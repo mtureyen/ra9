@@ -158,6 +158,7 @@ class UnconsciousEncoder:
         resilience: float = 0.5,
         context_tags: list[str] | None = None,
         event_bus: EventBus | None = None,
+        encoding_mood: dict | None = None,
     ) -> tuple[Memory | None, uuid.UUID | None]:
         """Encode an exchange as episode + episodic memory if significant.
 
@@ -223,6 +224,7 @@ class UnconsciousEncoder:
                 valence=appraisal.vector.valence,
                 source_episode_id=episode.id,
                 event_bus=event_bus,
+                encoding_mood=encoding_mood,
             )
             self.record_encoding(appraisal.intensity)
             return memory, episode.id
@@ -236,6 +238,7 @@ class UnconsciousEncoder:
             conversation_id=conversation_id,
             tags=tags,
             event_bus=event_bus,
+            encoding_mood=encoding_mood,
         )
 
         # ACC weakening: reduce protection so contradictory memories fade faster

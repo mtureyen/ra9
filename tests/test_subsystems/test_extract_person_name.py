@@ -7,7 +7,7 @@ These tests verify the function's logic in a simplified way.
 
 import re
 
-from emotive.subsystems.hippocampus.conflict import _extract_person_name
+from emotive.subsystems.acc.conflict import _extract_person_name
 
 
 class TestExtractPersonName:

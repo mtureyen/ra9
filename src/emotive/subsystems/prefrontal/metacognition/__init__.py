@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from emotive.runtime.event_bus import EventBus
     from emotive.subsystems.workspace.signals import WorkspaceOutput
 
-logger = get_logger("metacognition")
+logger = get_logger("prefrontal.metacognition")
 
 
 class Metacognition(Subsystem):

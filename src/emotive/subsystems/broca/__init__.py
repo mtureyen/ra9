@@ -26,10 +26,10 @@ if TYPE_CHECKING:
     from emotive.app_context import AppContext
     from emotive.config.schema import InnerSpeechConfig
     from emotive.runtime.event_bus import EventBus
-    from emotive.subsystems.metacognition.markers import MetacognitiveMarkers
+    from emotive.subsystems.prefrontal.metacognition.markers import MetacognitiveMarkers
     from emotive.subsystems.workspace.signals import WorkspaceOutput
 
-logger = get_logger("inner_speech")
+logger = get_logger("broca")
 
 
 class InnerSpeech(Subsystem):

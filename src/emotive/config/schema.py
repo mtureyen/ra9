@@ -67,6 +67,7 @@ class LayerConfig(BaseModel):
     episodes: bool = False
     mood: bool = False
     inner_world: bool = False
+    anamnesis: bool = False
     personality: bool = False
     identity: bool = False
 

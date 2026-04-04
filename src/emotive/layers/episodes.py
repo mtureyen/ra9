@@ -29,7 +29,7 @@ def create_episode(
     v = appraisal.vector
 
     # Compute mood deltas from emotion + intensity
-    from emotive.subsystems.mood.residue import compute_residue
+    from emotive.subsystems.raphe.residue import compute_residue
 
     mood_deltas = compute_residue(appraisal.primary_emotion, appraisal.intensity)
 
