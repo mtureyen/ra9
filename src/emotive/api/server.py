@@ -200,6 +200,18 @@ async def api_embodied():
     return thalamus.embodied.to_dict()
 
 
+class EnergyDrinkRequest(BaseModel):
+    energy: float = 0.9
+
+
+@app.post("/energy-drink")
+async def api_energy_drink(req: EnergyDrinkRequest = EnergyDrinkRequest()):
+    """Give Ryo an energy drink. Sets energy on the live in-memory state."""
+    thalamus = state.require_session()
+    thalamus.embodied._energy = max(0.0, min(1.0, req.energy))
+    return {"energy": thalamus.embodied.energy}
+
+
 @app.get("/schema")
 async def api_schema():
     """Current self-schema from DMN."""
